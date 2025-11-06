@@ -32,4 +32,22 @@ function M.show_startup_project()
   end
 end
 
+local builder = require("vstools.build.runner")
+
+function M.build_startup_project()
+      builder.build_startup_project()
+end
+
+function M.build_solution()
+      builder.build_solution()
+end
+
+function M.run_startup_project()
+      builder.run_startup_project()
+end
+
+function M.build_and_run()
+      builder.build_and_run()
+end
+
 return M

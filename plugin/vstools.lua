@@ -15,3 +15,13 @@ end, {})
 vim.api.nvim_create_user_command("VSShowStartupProject", function()
   vstools.show_startup_project()
 end, {})
+
+-- Commands for build and run
+vim.api.nvim_create_user_command("VSBuildProject", function()
+      require("vstools").build_startup_project()
+end, {})
+
+vim.api.nvim_create_user_command("VSBuildSolution", function()
+      require("vstools").build_solution()
+end, {})
+
