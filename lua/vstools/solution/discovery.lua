@@ -14,4 +14,17 @@ function M.find_vcxproj_projects()
   return dirs
 end
 
+-- search parent directories for .sln
+function M.find_solution(start_dir)
+  local dir = start_dir or vim.fn.getcwd()
+  while dir ~= "" and dir ~= "/" do
+    local files = vim.fn.globpath(dir, "*.sln", false, true)
+    if #files > 0 then
+      return files[1]:gsub('\\', '/')
+    end
+    dir = vim.fn.fnamemodify(dir, ":h")
+  end
+  return nil
+end
+
 return M
