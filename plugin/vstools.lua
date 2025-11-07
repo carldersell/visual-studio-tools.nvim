@@ -19,8 +19,7 @@ end, {})
 -- Commands to change build configuration
 vim.api.nvim_create_user_command("VSSetBuildConfig", function(opts)
   local new_conf = opts.args
-  require("vstools.config").set_build_config(new_conf)
-  print("Build configuration set to: " .. new_conf)
+  vstools.set_build_config(new_conf)
 end, {
   nargs = 1,
   complete = function()
@@ -29,24 +28,27 @@ end, {
 })
 
 vim.api.nvim_create_user_command("VSBuildConfigToggle", function()
-  require("vstools.config").toggle_build_config()
-  print("Build configuration set to: " .. require("vstools.config").get_build_config())
+  vstools.toggle_build_config()
+end, {})
+
+vim.api.nvim_create_user_command("VSGetBuildConfig", function()
+  vstools.get_build_config()
 end, {})
 
 -- Commands for build and run
 vim.api.nvim_create_user_command("VSBuildProject", function(opts)
-      require("vstools").build_startup_project(opts.args)
+      vstools.build_startup_project(opts.args)
 end, {})
 
 vim.api.nvim_create_user_command("VSBuildSolution", function(opts)
-      require("vstools").build_solution(opts.args)
+      vstools.build_solution(opts.args)
 end, {})
 
 vim.api.nvim_create_user_command("VSCleanProject", function(opts)
-      require("vstools").clean_startup_project(opts.args)
+      vstools.clean_startup_project(opts.args)
 end, {})
 
 vim.api.nvim_create_user_command("VSCleanSolution", function(opts)
-      require("vstools").clean_solution(opts.args)
+      vstools.clean_solution(opts.args)
 end, {})
 

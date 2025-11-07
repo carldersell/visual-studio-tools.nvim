@@ -12,11 +12,17 @@ function M.setup(opts)
     if project then
       print("Loaded startup project: " .. project)
     end
+
+    local build_config = state.get_build_config()
+    if build_config then
+      print("Build configuration: " .. build_config)
+    end
   end
 end
 
 -- Public API ----------------------------------------------------
 
+-- State persitent parts
 function M.select_startup_project()
   require("vstools.startup.selector").select()
 end
@@ -32,6 +38,17 @@ function M.show_startup_project()
   end
 end
 
+function M.set_build_config(conf)
+  local state = require("vstools.startup.state")
+  return state.set_build_config(conf)
+end
+
+function M.toggle_build_config()
+  local state = require("vstools.startup.state")
+  return state.toggle_build_config()
+end
+
+-- Build / Clean / Run API
 local builder = require("vstools.build.runner")
 
 function M.build_startup_project(conf)

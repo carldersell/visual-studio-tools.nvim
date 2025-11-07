@@ -1,11 +1,12 @@
 local M = {}
 
 local config = require("vstools.config")
+local state = require("vstools.startup.state")
 local solution = require("vstools.solution.discovery")
 
 local function get_config_name(config_name)
   if config_name == nil or config_name == "" then
-    return config.build_config
+    return state.get_build_config()
   end
   return config_name
 end
