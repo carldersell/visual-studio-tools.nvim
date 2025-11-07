@@ -34,11 +34,19 @@ vim.api.nvim_create_user_command("VSBuildConfigToggle", function()
 end, {})
 
 -- Commands for build and run
-vim.api.nvim_create_user_command("VSBuildProject", function()
-      require("vstools").build_startup_project()
+vim.api.nvim_create_user_command("VSBuildProject", function(opts)
+      require("vstools").build_startup_project(opts.args)
 end, {})
 
-vim.api.nvim_create_user_command("VSBuildSolution", function()
-      require("vstools").build_solution()
+vim.api.nvim_create_user_command("VSBuildSolution", function(opts)
+      require("vstools").build_solution(opts.args)
+end, {})
+
+vim.api.nvim_create_user_command("VSCleanProject", function(opts)
+      require("vstools").clean_startup_project(opts.args)
+end, {})
+
+vim.api.nvim_create_user_command("VSCleanSolution", function(opts)
+      require("vstools").clean_solution(opts.args)
 end, {})
 

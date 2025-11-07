@@ -30,4 +30,30 @@ function M.build_solution(conf)
   config.open_terminal(cmd)
 end
 
+function M.clean_startup_project(conf)
+  local project = state.get_project()
+  if not project then
+    print("No startup project set.")
+    return
+  end
+
+  local cmd, err = msbuild.clean_project_cmd(project, conf)
+  if not cmd then
+    print(err)
+    return
+  end
+
+  config.open_terminal(cmd)
+end
+
+function M.clean_solution(conf)
+  local cmd, err = msbuild.clean_solution_cmd(conf)
+  if not cmd then
+    print(err)
+    return
+  end
+
+  config.open_terminal(cmd)
+end
+
 return M

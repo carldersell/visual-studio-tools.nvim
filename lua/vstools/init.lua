@@ -34,20 +34,28 @@ end
 
 local builder = require("vstools.build.runner")
 
-function M.build_startup_project()
-      builder.build_startup_project()
+function M.build_startup_project(conf)
+      builder.build_startup_project(conf)
 end
 
-function M.build_solution()
-      builder.build_solution()
+function M.build_solution(conf)
+      builder.build_solution(conf)
 end
 
-function M.run_startup_project()
-      builder.run_startup_project()
+function M.clean_startup_project(conf)
+      builder.clean_startup_project(conf)
 end
 
-function M.build_and_run()
-      builder.build_and_run()
+function M.clean_solution(conf)
+      builder.clean_solution(conf)
+end
+
+function M.run_startup_project(conf)
+      builder.run_startup_project(conf)
+end
+
+function M.build_and_run(conf)
+      builder.build_and_run(conf)
 end
 
 return M
