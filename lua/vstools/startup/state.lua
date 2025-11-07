@@ -35,7 +35,7 @@ function M.set_project(path)
   local cfg = load()
   cfg[key(cwd, "startup_project")] = path
   save(cfg)
-  print("Startup project set to: " .. path)
+  vim.notify("Startup project set to: " .. path, vim.log.levels.INFO)
 end
 
 function M.get_project()
@@ -53,7 +53,7 @@ end
 
 function M.set_build_config(config_name)
   if config_name ~= "Debug" and config_name ~= "Release" then
-    print("Invalid build configuration: " .. tostring(config_name))
+    vim.notify("Invalid build configuration: " .. tostring(config_name), vim.log.levels.ERROR)
     return
   end
 
@@ -63,7 +63,7 @@ function M.set_build_config(config_name)
   cfg[key(cwd, "build_config")] = config_name
   save(cfg)
 
-  print("Build configuration set to: " .. config_name)
+  vim.notify("Build configuration set to: " .. config_name, vim.log.levels.INFO)
 end
 
 function M.toggle_build_config()

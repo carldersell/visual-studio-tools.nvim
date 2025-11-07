@@ -82,7 +82,7 @@ end
 -- Public picker API
 function M.select_project(projects, callback, current_project)
   if #projects == 0 then
-    print("No .vcxproj projects found.")
+    vim.notify("No .vcxproj projects found.", vim.log.levels.ERROR)
     return
   end
 

@@ -10,12 +10,12 @@ function M.setup(opts)
     local state = require("vstools.startup.state")
     local project = state.get_project()
     if project then
-      print("Loaded startup project: " .. project)
+      vim.notify("Loaded startup project: " .. project, vim.log.levels.INFO)
     end
 
     local build_config = state.get_build_config()
     if build_config then
-      print("Build configuration: " .. build_config)
+      vim.notify("Build configuration: " .. build_config, vim.log.levels.INFO)
     end
   end
 end
@@ -32,9 +32,9 @@ function M.show_startup_project()
   local project = state.get_project()
 
   if project then
-    print("Startup project: " .. project)
+    vim.notify("Startup project: " .. project, vim.log.levels.INFO)
   else
-    print("No startup project set for this directory.")
+    vim.notify("No startup project set for this directory.", vim.log.levels.WARN)
   end
 end
 
