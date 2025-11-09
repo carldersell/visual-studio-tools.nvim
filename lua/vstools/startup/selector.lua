@@ -8,9 +8,9 @@ function M.select()
 
   require("vstools.startup.picker").select_project(projects, function(choice)
     if choice then
-      state.set_project(choice)
+      state.set_current_startup_project(choice)
     end
-  end, state.get_project())
+  end, state.get_current_startup_project())
 end
 
 return M

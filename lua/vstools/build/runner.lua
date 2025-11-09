@@ -5,7 +5,7 @@ local state = require("vstools.startup.state")
 local msbuild = require("vstools.build.msbuild")
 
 function M.build_startup_project(conf)
-  local project = state.get_project()
+  local project = state.get_current_startup_project()
   if not project then
     vim.notify("No startup project set.", vim.log.levels.ERROR)
     return
@@ -31,7 +31,7 @@ function M.build_solution(conf)
 end
 
 function M.clean_startup_project(conf)
-  local project = state.get_project()
+  local project = state.get_current_startup_project()
   if not project then
     vim.notify("No startup project set.", vim.log.levels.ERROR)
     return

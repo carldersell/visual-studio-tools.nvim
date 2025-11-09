@@ -1,8 +1,11 @@
 local M = {}
 
-local config_dir = vim.fn.stdpath("data") .. "/vstools"
+local config_dir  = vim.fn.stdpath("data") .. "/vstools"
 local config_path = config_dir .. "/state.json"
 
+-----------------------------------------------------------------------
+-- Utilities
+-----------------------------------------------------------------------
 local function ensure_dir()
   if vim.fn.isdirectory(config_dir) == 0 then
     vim.fn.mkdir(config_dir, "p")
@@ -24,55 +27,82 @@ local function save(tbl)
   file:close()
 end
 
--- Helper to create consistent keys
-local function key(cwd, name)
-  return cwd .. "::" .. name
+local function cwd()
+  return vim.fn.getcwd()
 end
 
--- Startup project setters
-function M.set_project(path)
-  local cwd = vim.fn.getcwd()
-  local cfg = load()
-  cfg[key(cwd, "startup_project")] = path
-  save(cfg)
-  vim.notify("Startup project set to: " .. path, vim.log.levels.INFO)
+-----------------------------------------------------------------------
+-- Get or create workspace entry
+-----------------------------------------------------------------------
+local function ensure_workspace(tbl)
+  local key = cwd()
+  tbl[key] = tbl[key] or {
+    build_config = "Debug",
+    current_startup_project = nil,
+    startup_projects = {},
+  }
+  return tbl[key]
 end
 
-function M.get_project()
-  local cwd = vim.fn.getcwd()
-  local cfg = load()
-  return cfg[key(cwd, "startup_project")]
+local function ensure_startup_project(ws, project_path)
+  ws.startup_projects[project_path] = ws.startup_projects[project_path] or {
+  }
+  return ws.startup_projects[project_path]
 end
 
--- Build_config setters
+-----------------------------------------------------------------------
+-- Workspace-level settings
+-----------------------------------------------------------------------
+
 function M.get_build_config()
-  local cwd = vim.fn.getcwd()
   local cfg = load()
-  return cfg[key(cwd, "build_config")] or "Debug"
+  local ws = ensure_workspace(cfg)
+  return ws.build_config or "Debug"
 end
 
-function M.set_build_config(config_name)
-  if config_name ~= "Debug" and config_name ~= "Release" then
-    vim.notify("Invalid build configuration: " .. tostring(config_name), vim.log.levels.ERROR)
-    return
-  end
-
-  local cwd = vim.fn.getcwd()
+function M.set_build_config(conf)
   local cfg = load()
-
-  cfg[key(cwd, "build_config")] = config_name
+  local ws = ensure_workspace(cfg)
+  ws.build_config = conf
   save(cfg)
-
-  vim.notify("Build configuration set to: " .. config_name, vim.log.levels.INFO)
+  vim.notify("Build configuration set to: " .. conf, vim.log.levels.INFO)
 end
 
 function M.toggle_build_config()
   local current = M.get_build_config()
   local next = (current == "Debug") and "Release" or "Debug"
   M.set_build_config(next)
-  return next
 end
 
+function M.get_current_startup_project()
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+  return ws.current_startup_project
+end
+
+function M.set_current_startup_project(project_path)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+  ws.current_startup_project = project_path
+  ensure_startup_project(ws, project_path)
+  save(cfg)
+  vim.notify("Startup project set to: " .. project_path, vim.log.levels.INFO)
+end
+
+-----------------------------------------------------------------------
+-- Per-startup-project settings
+-----------------------------------------------------------------------
+
+function M.get_project_settings(project_path)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+  if not project_path then
+    project_path = ws.current_startup_project
+  end
+  if not project_path then
+    return nil
+  end
+  return ensure_startup_project(ws, project_path)
 end
 
 return M

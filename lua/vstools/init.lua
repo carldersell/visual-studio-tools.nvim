@@ -8,7 +8,7 @@ function M.setup(opts)
   -- Load project upon startup
   if opts.auto_load_startup_project then
     local state = require("vstools.startup.state")
-    local project = state.get_project()
+    local project = state.get_current_startup_project()
     if project then
       vim.notify("Loaded startup project: " .. project, vim.log.levels.INFO)
     end
@@ -29,7 +29,7 @@ end
 
 function M.show_startup_project()
   local state = require("vstools.startup.state")
-  local project = state.get_project()
+  local project = state.get_current_startup_project()
 
   if project then
     vim.notify("Startup project: " .. project, vim.log.levels.INFO)
