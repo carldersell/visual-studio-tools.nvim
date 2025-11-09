@@ -48,6 +48,17 @@ function M.toggle_build_config()
   return state.toggle_build_config()
 end
 
+function M.edit_run_args()
+  return require("vstools.startup.runargs").open_runargs_editor({floating = true})
+end
+
+function M.get_project_settings()
+  local state = require("vstools.startup.state")
+  local settings = state.get_project_settings(state.get_current_startup_project())
+  if not settings then return end
+  vim.notify(state.get_current_startup_project() .. ": " .. vim.inspect(settings), vim.log.levels.INFO)
+end
+
 -- Build / Clean / Run API
 local builder = require("vstools.build.runner")
 

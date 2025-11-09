@@ -2,6 +2,7 @@ local M = {}
 
 local config = require("vstools.config")
 local state = require("vstools.startup.state")
+local runargs = require("vstools.startup.runargs")
 local msbuild = require("vstools.build.msbuild")
 
 function M.build_startup_project(conf)

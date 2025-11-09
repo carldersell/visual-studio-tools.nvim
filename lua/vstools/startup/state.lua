@@ -46,6 +46,8 @@ end
 
 local function ensure_startup_project(ws, project_path)
   ws.startup_projects[project_path] = ws.startup_projects[project_path] or {
+    run_args = {},
+    environment = {},
   }
   return ws.startup_projects[project_path]
 end
@@ -103,6 +105,54 @@ function M.get_project_settings(project_path)
     return nil
   end
   return ensure_startup_project(ws, project_path)
+end
+
+-- Run args (grouped structure)
+function M.get_run_args(project_path)
+  local settings = M.get_project_settings(project_path)
+  if not settings then return {} end
+  return settings.run_args or {}
+end
+
+function M.set_run_args(groups, project_path)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+
+  project_path = project_path or ws.current_startup_project
+  if not project_path then
+    vim.notifyprint("No startup project selected.", vim.log.levels.ERROR)
+    return
+  end
+
+  local ps = ensure_startup_project(ws, project_path)
+  ps.run_args = groups or {}
+
+  save(cfg)
+  vim.notify("Run arguments saved for project: " .. project_path, vim.log.levels.INFO)
+end
+
+-- Environment variables
+function M.get_environment(project_path)
+  local settings = M.get_project_settings(project_path)
+  if not settings then return {} end
+  return settings.environment or {}
+end
+
+function M.set_environment(env_tbl, project_path)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+
+  project_path = project_path or ws.current_startup_project
+  if not project_path then
+    vim.notifyprint("No startup project selected.", vim.log.levels.ERROR)
+    return
+  end
+
+  local ps = ensure_startup_project(ws, project_path)
+  ps.environment = env_tbl or {}
+
+  save(cfg)
+  vim.notify("Environment saved for project: " .. project_path, vim.log.levels.INFO)
 end
 
 return M

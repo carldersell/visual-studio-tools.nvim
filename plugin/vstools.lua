@@ -16,6 +16,10 @@ vim.api.nvim_create_user_command("VSShowStartupProject", function()
   vstools.show_startup_project()
 end, {})
 
+vim.api.nvim_create_user_command("VSGetProjectSettings", function()
+  vstools.get_project_settings()
+end, {})
+
 -- Commands to change build configuration
 vim.api.nvim_create_user_command("VSSetBuildConfig", function(opts)
   local new_conf = opts.args
@@ -33,6 +37,10 @@ end, {})
 
 vim.api.nvim_create_user_command("VSGetBuildConfig", function()
   vstools.get_build_config()
+end, {})
+
+vim.api.nvim_create_user_command("VSEditRunArgs", function()
+  vstools.edit_run_args()
 end, {})
 
 -- Commands for build and run
