@@ -60,3 +60,7 @@ vim.api.nvim_create_user_command("VSCleanSolution", function(opts)
       vstools.clean_solution(opts.args)
 end, {})
 
+vim.api.nvim_create_user_command("VSRunProject", function(opts)
+      vstools.run_startup_project(opts.args)
+end, {})
+
