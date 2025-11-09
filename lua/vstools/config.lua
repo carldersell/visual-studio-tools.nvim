@@ -1,6 +1,9 @@
 local DEFAULTS = {
   msbuild_path = "msbuild.exe",
 
+  -- To run executables in nushell
+  prepend_exe_path = "^",
+
   open_terminal = function(cmd)
     require("floating_terminal").run_in_bottom_terminal(cmd)
     vim.cmd("normal! G")

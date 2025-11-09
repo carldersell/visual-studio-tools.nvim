@@ -24,7 +24,8 @@ function M.build_project_cmd(project_path, config_name)
   local target = vim.fn.fnamemodify(project_path, ":t:r") -- project name w/o extension
 
   local cmd = string.format(
-    [[%s "%s" -t:"%s" -p:Configuration=%s]],
+    [[%s'%s' "%s" -t:"%s" -p:Configuration=%s]],
+    config.prepend_exe_path,
     msbuild,
     sln,
     target,
@@ -45,7 +46,8 @@ function M.build_solution_cmd(config_name)
   local conf = get_config_name(config_name)
 
   local cmd = string.format(
-    [[%s "%s" -p:Configuration=%s]],
+    [[%s'%s' "%s" -p:Configuration=%s]],
+    config.prepend_exe_path,
     msbuild,
     sln,
     conf
@@ -67,7 +69,8 @@ function M.clean_project_cmd(project_path, config_name)
   local target = vim.fn.fnamemodify(project_path, ":t:r") -- project name w/o extension
 
   local cmd = string.format(
-    [[%s "%s" -t:"%s:clean" -p:Configuration=%s]],
+    [[%s'%s' "%s" -t:"%s:clean" -p:Configuration=%s]],
+    config.prepend_exe_path,
     msbuild,
     sln,
     target,
@@ -88,7 +91,8 @@ function M.clean_solution_cmd(config_name)
   local conf = get_config_name(config_name)
 
   local cmd = string.format(
-    [[%s "%s" -t:clean -p:Configuration=%s]],
+    [[%s'%s' "%s" -t:clean -p:Configuration=%s]],
+    config.prepend_exe_path,
     msbuild,
     sln,
     conf
