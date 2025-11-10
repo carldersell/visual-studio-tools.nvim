@@ -37,7 +37,7 @@ end
 local function ensure_workspace(tbl)
   local key = cwd()
   tbl[key] = tbl[key] or {
-    build_config = "Debug",
+    build_config = require("vstools.config").build_config,
     current_startup_project = nil,
     startup_projects = {},
   }
@@ -48,6 +48,7 @@ local function ensure_startup_project(ws, project_path)
   ws.startup_projects[project_path] = ws.startup_projects[project_path] or {
     run_args = {},
     environment = {},
+    gui = false,
   }
   return ws.startup_projects[project_path]
 end
@@ -59,7 +60,7 @@ end
 function M.get_build_config()
   local cfg = load()
   local ws = ensure_workspace(cfg)
-  return ws.build_config or "Debug"
+  return ws.build_config or require("vstools.comfig").build_config
 end
 
 function M.set_build_config(conf)
@@ -153,6 +154,36 @@ function M.set_environment(env_tbl, project_path)
 
   save(cfg)
   vim.notify("Environment saved for project: " .. project_path, vim.log.levels.INFO)
+end
+
+-- GUI flag
+function M.get_gui_flag(project_path)
+  local settings = M.get_project_settings(project_path)
+  if not settings then return false end
+  return settings.gui or false
+end
+
+function M.set_gui_flag(flag, project_path)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+
+  project_path = project_path or ws.current_startup_project
+  if not project_path then
+    vim.notifyprint("No startup project selected.", vim.log.levels.ERROR)
+    return
+  end
+
+  local ps = ensure_startup_project(ws, project_path)
+  if (type(flag) == "boolean") then
+    ps.gui = flag
+  elseif (type(flag) == "string") then
+    ps.gui = string.lower(flag) == "true"
+  else
+    ps.gui = false
+  end
+
+  save(cfg)
+  vim.notify("GUI flag saved for project: " .. project_path, vim.log.levels.INFO)
 end
 
 return M

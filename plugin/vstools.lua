@@ -4,8 +4,25 @@ if not ok then
   return
 end
 
--- User may configure later, but call setup with defaults now
-vstools.setup()
+local function parse_args(argstr)
+  local result = {}
+  for token in string.gmatch(argstr, "%S+") do
+    local key, val = token:match("^(%w+)%=(.+)$")
+    if key then
+      -- key=value form
+      if val == "true" then
+        result[key] = true
+      elseif val == "false" then
+        result[key] = false
+      else
+        result[key] = val
+      end
+    else
+      result[token] = true
+    end
+  end
+  return result
+end
 
 -- Commands delegate to vstools public API
 vim.api.nvim_create_user_command("VSSelectStartupProject", function()
@@ -43,24 +60,49 @@ vim.api.nvim_create_user_command("VSEditRunArgs", function()
   vstools.edit_run_args()
 end, {})
 
+vim.api.nvim_create_user_command("VSProjectSetGuiFlag", function(opts)
+  local flag = opts.args
+  vstools.set_project_gui_flag(flag)
+end, {
+  nargs = 1,
+  complete = function()
+    return { "true", "false" }
+  end,
+})
+
+vim.api.nvim_create_user_command("VSProjectGetGuiFlag", function()
+  vstools.get_project_gui_flag()
+end, {})
+
 -- Commands for build and run
 vim.api.nvim_create_user_command("VSBuildProject", function(opts)
-      vstools.build_startup_project(opts.args)
-end, {})
+      vstools.build_startup_project(parse_args(opts.args))
+end, {nargs="*"})
 
 vim.api.nvim_create_user_command("VSBuildSolution", function(opts)
-      vstools.build_solution(opts.args)
-end, {})
+      vstools.build_solution(parse_args(opts.args))
+end, {nargs="*"})
 
 vim.api.nvim_create_user_command("VSCleanProject", function(opts)
-      vstools.clean_startup_project(opts.args)
-end, {})
+      vstools.clean_startup_project(parse_args(opts.args))
+end, {nargs="*"})
 
 vim.api.nvim_create_user_command("VSCleanSolution", function(opts)
-      vstools.clean_solution(opts.args)
-end, {})
+      vstools.clean_solution(parse_args(opts.args))
+end, {nargs="*"})
 
 vim.api.nvim_create_user_command("VSRunProject", function(opts)
-      vstools.run_startup_project(opts.args)
+      vstools.run_startup_project(parse_args(opts.args))
+end, {nargs="*"})
+
+vim.api.nvim_create_user_command("VSBuildAndRun", function(opts)
+      vstools.build_and_run(parse_args(opts.args))
+end, {nargs="*"})
+
+vim.api.nvim_create_user_command("VSToggleBuildTerminal", function()
+      vstools.toggle_build_terminal()
 end, {})
 
+vim.api.nvim_create_user_command("VSStopCommand", function()
+      vstools.stop_command()
+end, {})

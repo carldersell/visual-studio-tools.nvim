@@ -4,95 +4,169 @@ local config = require("vstools.config")
 local state = require("vstools.startup.state")
 local runargs = require("vstools.startup.runargs")
 local msbuild = require("vstools.build.msbuild")
+local system_runner = require("vstools.build.runner_system")
 
-function M.build_startup_project(conf)
+------------------------------------------------------------
+-- Helpers
+------------------------------------------------------------
+
+local function start_job(cmd, opts)
+  opts = opts or {}
+  if opts.interactive then
+    config.open_terminal(cmd)
+  else
+    system_runner.start(cmd, {
+      on_exit = opts.on_exit,
+    })
+  end
+end
+
+------------------------------------------------------------
+-- Build Commands
+------------------------------------------------------------
+
+function M.build_startup_project(opts)
+  opts = opts or {}
   local project = state.get_current_startup_project()
   if not project then
     vim.notify("No startup project set.", vim.log.levels.ERROR)
     return
   end
 
-  local cmd, err = msbuild.build_project_cmd(project, conf)
+  local cmd, err
+  if opts.interactive then
+    cmd, err = msbuild.build_project_cmd_str(project, opts.conf)
+  else
+    cmd, err = msbuild.build_project_cmd_list(project, opts.conf)
+  end
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  config.open_terminal(cmd)
+  start_job(cmd, opts)
 end
 
-function M.build_solution(conf)
-  local cmd, err = msbuild.build_solution_cmd(conf)
+function M.build_solution(opts)
+  opts = opts or {}
+  local cmd, err
+  if opts.interactive then
+    cmd, err = msbuild.build_solution_cmd_str(opts.conf)
+  else
+    cmd, err = msbuild.build_solution_cmd_list(opts.conf)
+  end
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  config.open_terminal(cmd)
+  start_job(cmd, opts)
 end
 
-function M.clean_startup_project(conf)
+function M.clean_startup_project(opts)
+  opts = opts or {}
   local project = state.get_current_startup_project()
   if not project then
     vim.notify("No startup project set.", vim.log.levels.ERROR)
     return
   end
 
-  local cmd, err = msbuild.clean_project_cmd(project, conf)
+  local cmd, err
+  if opts.interactive then
+    cmd, err = msbuild.clean_project_cmd_str(project, opts.conf)
+  else
+    cmd, err = msbuild.clean_project_cmd_list(project, opts.conf)
+  end
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  config.open_terminal(cmd)
+  start_job(cmd, opts)
 end
 
-function M.clean_solution(conf)
-  local cmd, err = msbuild.clean_solution_cmd(conf)
+function M.clean_solution(opts)
+  opts = opts or {}
+  local cmd, err
+  if opts.interactive then
+    cmd, err = msbuild.clean_solution_cmd_str(opts.conf)
+  else
+    cmd, err = msbuild.clean_solution_cmd_list(opts.conf)
+  end
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  config.open_terminal(cmd)
+  start_job(cmd, opts)
 end
 
--- EXE runner ------------------------------------------------------
+------------------------------------------------------------
+-- EXE Runner -------------------------------------------------
+------------------------------------------------------------
 
-local function find_executable(project_path, config_name)
-  local conf = config_name or "Debug"
+local function find_built(project_path, config_name, extension)
+  local conf = config_name or config.build_config
   local project_dir = vim.fn.fnamemodify(project_path, ":h")
   local project_name = vim.fn.fnamemodify(project_path, ":t:r")
   local project_parent_dir = vim.fn.fnamemodify(project_path, ":h:h")
 
-  -- very common MSVC output structure:
-  local exe = project_parent_dir .. "\\x64" .. conf .. "\\" .. project_name .. ".exe"
-  if vim.fn.filereadable(exe) == 1 then
-    return exe
-  end
+  local paths = {
+    project_parent_dir .. "\\x64" .. conf .. "\\" .. project_name .. extension,
+    project_parent_dir .. "\\" .. conf .. "\\" .. project_name .. extension,
+    project_dir .. "\\x64" .. conf .. "\\" .. project_name .. extension,
+    project_dir .. "\\" .. conf .. "\\" .. project_name .. extension,
+  }
 
-  exe = project_parent_dir .. "\\" .. conf .. "\\" .. project_name .. ".exe"
-  if vim.fn.filereadable(exe) == 1 then
-    return exe
-  end
-
-  exe = project_dir .. "\\x64" .. conf .. "\\" .. project_name .. ".exe"
-  if vim.fn.filereadable(exe) == 1 then
-    return exe
-  end
-
-  exe = project_dir .. "\\" .. conf .. "\\" .. project_name .. ".exe"
-  if vim.fn.filereadable(exe) == 1 then
-    return exe
+  for _, p in ipairs(paths) do
+    if vim.fn.filereadable(p) == 1 then return p end
   end
 
   return nil
 end
 
-function M.run_startup_project(conf)
-  if not conf or conf == "" then
-    conf = state.get_build_config()
+function M.run_startup_project(opts)
+  opts = opts or {}
+  local conf = opts.conf or state.get_build_config()
+
+  local project = opts.project or state.get_current_startup_project()
+  if not project then
+    vim.notify("No startup project set.", vim.log.levels.ERROR)
+    return
   end
+
+  local exe = find_built(project, conf, ".exe")
+  if not exe then
+    local dll = find_built(project, conf, ".dll")
+    if not dll then
+      vim.notify("Executable not found. Have you built the project?", vim.log.levels.ERROR)
+    end
+    return
+  end
+
+  -- If gui flag is set, run interactively
+  if state.get_gui_flag(project) then
+    opts.interactive = true
+  end
+
+  local args = runargs.get_run_args_str()
+  local cmd
+  if opts.interactive then
+    cmd = string.format("%s'%s' %s", config.prepend_exe_path, exe, args)
+  else
+    cmd = { exe }
+    for word in string.gmatch(args, "%S+") do table.insert(cmd, word) end
+  end
+
+  start_job(cmd, opts)
+end
+
+------------------------------------------------------------
+-- Build + Run ------------------------------------------------
+------------------------------------------------------------
+
+function M.build_and_run(opts)
+  opts = opts or {}
 
   local project = state.get_current_startup_project()
   if not project then
@@ -100,18 +174,24 @@ function M.run_startup_project(conf)
     return
   end
 
-  local exe = find_executable(project, conf)
-  if not exe then
-    vim.notify("Executable not found. Have you built the project?", vim.log.levels.ERROR)
+  local conf = opts.conf or state.get_build_config()
+
+  local cmd, err = msbuild.build_project_cmd_list(project, conf)
+  if not cmd and err then
+    vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  local args = runargs.get_run_args_str()
-  -- Maybe add a check if we will run in nushell, if that is the case then we might have to add a '^' in front of the exe path
-  -- local cmd = string.format([["%s" %s]], exe, args)
-  local cmd = string.format([[%s'%s' %s]], config.prepend_exe_path, exe, args)
-
-  config.open_terminal(cmd)
+  start_job(cmd, {
+    on_exit = function(code)
+      if code == 0 then
+        M.run_startup_project(opts)
+      else
+        vim.notify("Build failed, not running executable.", vim.log.levels.ERROR)
+      end
+    end,
+    interactive = false,
+  })
 end
 
 return M
