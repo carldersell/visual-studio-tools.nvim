@@ -55,7 +55,7 @@ local function entry_maker(current_project, opts)
     })
 
     entry.display = function(e)
-      local tail, parent = get_path_and_tail(e.value)
+      local tail, parent = get_path_and_tail(vim.fn.fnamemodify(e.value, ":r"))
       local tail_disp = tail .. " "
 
       local icon, icon_hl = telescope_utils.get_devicons(tail)
@@ -88,6 +88,7 @@ function M.select_project(projects, callback, current_project)
 
   local title = "Select Startup Project"
   if current_project then
+    current_project = vim.fn.fnamemodify(current_project, ":r")
     title = title .. " (" .. telescope_utils.path_tail(current_project) .. ")"
   end
 

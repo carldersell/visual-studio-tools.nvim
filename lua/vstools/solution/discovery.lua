@@ -3,15 +3,17 @@ local M = {}
 function M.find_vcxproj_projects()
   local files = vim.fn.systemlist("fd -e vcxproj")
   local dirs = {}
+  local projects = {}
 
   for _, file in ipairs(files) do
     local dir = vim.fn.fnamemodify(file, ":p:h")
     if not vim.tbl_contains(dirs, dir) then
       table.insert(dirs, dir)
+      table.insert(projects, vim.fn.fnamemodify(file, ":p"))
     end
   end
 
-  return dirs
+  return projects
 end
 
 -- search parent directories for .sln
