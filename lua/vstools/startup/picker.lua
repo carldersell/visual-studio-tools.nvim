@@ -9,6 +9,8 @@ local make_entry = require("telescope.make_entry")
 local entry_display = require("telescope.pickers.entry_display")
 local plenary_strings = require("plenary.strings")
 local devicons = require("nvim-web-devicons")
+local on_windows = vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+
 
 -- Width for icon column
 local icon_width = plenary_strings.strdisplaywidth(
@@ -17,10 +19,16 @@ local icon_width = plenary_strings.strdisplaywidth(
 
 -- Extract tail + truncated parent path
 local function get_path_and_tail(path)
+  if on_windows then
+    -- Slightly modified version to handle windows paths
+    -- Replace all / with \\
+    path = string.gsub(path, '/', '\\')
+  end
+
   local tail = telescope_utils.path_tail(path)
   local parent = plenary_strings.truncate(path, #path - #tail, "")
   parent = telescope_utils.transform_path({
-    path_display = { "truncate" },
+    path_display = { "truncate", cwd=vim.uv.cwd() },
   }, parent)
   return tail, parent
 end
