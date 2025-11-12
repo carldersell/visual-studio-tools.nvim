@@ -41,9 +41,21 @@ end
 
 function M.get_build_config()
   local state = require("vstools.startup.state")
-  local build_config =  state.get_build_config()
+  local build_config = state.get_build_config()
   if not build_config then return end
   vim.notify("Build configuration: ".. build_config)
+end
+
+function M.set_solution_file(solution_path)
+  local state = require("vstools.startup.state")
+  return state.set_solution_path(solution_path)
+end
+
+function M.get_solution_file()
+  local state = require("vstools.startup.state")
+  local solution_path = state.get_solution_path()
+  if not solution_path then return end
+  vim.notify("Solution path: ".. solution_path)
 end
 
 function M.toggle_build_config()

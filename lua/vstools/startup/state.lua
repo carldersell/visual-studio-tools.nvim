@@ -39,6 +39,7 @@ local function ensure_workspace(tbl)
   tbl[key] = tbl[key] or {
     build_config = require("vstools.config").build_config,
     current_startup_project = nil,
+    solution_file = require("vstools.solution.discovery").find_solution(key),
     startup_projects = {},
   }
   return tbl[key]
@@ -90,6 +91,20 @@ function M.set_current_startup_project(project_path)
   ensure_startup_project(ws, project_path)
   save(cfg)
   vim.notify("Startup project set to: " .. project_path, vim.log.levels.INFO)
+end
+
+function M.get_solution_path()
+    local cfg = load()
+    local ws = ensure_workspace(cfg)
+    return ws.solution_file
+end
+
+function M.set_solution_path(sol_path)
+    local cfg = load()
+    local ws = ensure_workspace(cfg)
+    ws.solution_file = sol_path or require("vstools.solution.discovery").find_solution()
+    save(cfg)
+    vim.notify("Solution file set to: " .. ws.solution_file, vim.log.levels.INFO)
 end
 
 -----------------------------------------------------------------------

@@ -56,6 +56,14 @@ vim.api.nvim_create_user_command("VSGetBuildConfig", function()
   vstools.get_build_config()
 end, {})
 
+vim.api.nvim_create_user_command("VSSetSolutionPath", function(opts)
+    vstools.set_solution_file(opts.args)
+end, {})
+
+vim.api.nvim_create_user_command("VSGetSolutionPath", function()
+    vstools.get_solution_file()
+end, {})
+
 vim.api.nvim_create_user_command("VSEditRunArgs", function()
   vstools.edit_run_args()
 end, {})

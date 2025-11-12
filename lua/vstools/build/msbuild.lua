@@ -2,7 +2,6 @@ local M = {}
 
 local config = require("vstools.config")
 local state = require("vstools.startup.state")
-local solution = require("vstools.solution.discovery")
 
 local function get_config_name(config_name)
   if config_name == nil or config_name == "" then
@@ -13,7 +12,7 @@ end
 
 -- msbuild <solution> -t:<project> -p:Configuration=Debug
 function M.build_project_cmd_list(project_path, config_name)
-  local sln = solution.find_solution()
+  local sln = state.get_solution_path()
   if not sln then
     return nil, "No solution file found."
   end
@@ -49,7 +48,7 @@ end
 
 -- builds entire solution
 function M.build_solution_cmd_list(config_name)
-  local sln = solution.find_solution()
+  local sln = state.get_solution_path()
   if not sln then
     return nil, "No solution file found."
   end
@@ -83,7 +82,7 @@ end
 
 -- clean current project
 function M.clean_project_cmd_list(project_path, config_name)
-  local sln = solution.find_solution()
+  local sln = state.get_solution_path()
   if not sln then
     return nil, "No solution file found."
   end
@@ -121,7 +120,7 @@ end
 
 -- cleans entire solution
 function M.clean_solution_cmd_list(config_name)
-  local sln = solution.find_solution()
+  local sln = state.get_solution_path()
   if not sln then
     return nil, "No solution file found."
   end
