@@ -40,6 +40,7 @@ local function ensure_workspace(tbl)
     build_config = require("vstools.config").build_config,
     current_startup_project = nil,
     solution_file = require("vstools.solution.discovery").find_solution(key),
+    process = {},
     startup_projects = {},
   }
   return tbl[key]
@@ -105,6 +106,36 @@ function M.set_solution_path(sol_path)
     ws.solution_file = sol_path or require("vstools.solution.discovery").find_solution()
     save(cfg)
     vim.notify("Solution file set to: " .. ws.solution_file, vim.log.levels.INFO)
+end
+
+-- Process state
+function M.save_running_process(pid, cmd, start_time)
+  local cfg = load()
+
+  local ws = ensure_workspace(cfg)
+
+  ws.process = {
+    pid = pid,
+    cmd = cmd,
+    start_time = start_time,
+  }
+
+  save(cfg)
+end
+
+function M.clear_running_process()
+  local key = cwd()
+  local cfg = load()
+  if cfg[key] then
+    cfg[key].process = {}
+    save(cfg)
+  end
+end
+
+function M.get_running_process()
+  local key = cwd()
+  local cfg = load()
+  return cfg[key] and cfg[key].process or {}
 end
 
 -----------------------------------------------------------------------
