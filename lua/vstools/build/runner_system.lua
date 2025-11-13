@@ -127,6 +127,7 @@ local function is_open()
   end
   return win ~= nil, win
 end
+
 -- ---------- window / toggle ----------
 
 -- Create (or jump to) a floating window showing the build buffer,
@@ -169,8 +170,11 @@ function M.toggle_window(opts)
     height = height,
     style = "minimal",
     border = cfg.border,
+    title = " Build log ",
+    title_pos = "center",
     noautocmd = true,
   })
+  vim.wo[state.win].winhl = "FloatTitle:TelescopeBorder,NormalFloat:TelescopeNormal"
   vim.cmd("normal! G")
 
   -- Window-local options
