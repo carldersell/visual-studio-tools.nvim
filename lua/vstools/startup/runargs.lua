@@ -208,7 +208,10 @@ function M.open_runargs_editor(opts)
       col = col,
       border = "rounded",
       style = "minimal",
+      title = " Command arguments ",
+      title_pos = "center",
     })
+    vim.wo[win].winhl = "FloatTitle:TelescopeBorder,NormalFloat:TelescopeNormal"
   else
     vim.api.nvim_set_current_buf(buf)
     win = vim.api.nvim_get_current_win()
