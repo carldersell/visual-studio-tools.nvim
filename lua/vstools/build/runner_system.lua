@@ -1,3 +1,5 @@
+local state_module = require("vstools.startup.state")
+
 local M = {}
 local api = vim.api
 
@@ -29,6 +31,7 @@ local state = {
   buf = nil,
   win = nil,
   job = nil,
+  pid = nil,
   partial = "",
   name = "VSTools Build",
 }
@@ -181,11 +184,31 @@ end
 
 -- ---------- job control ----------
 
+function M.delete_buffer()
+  if state.buf then
+    vim.cmd("bd! ".. state.buf)
+  end
+end
+
+function M.clean_stale_processes()
+  local proc = state_module.get_running_process()
+  if proc and proc.pid and proc.start_time then
+    local same = require("vstools.build.utils.process_checker").is_same_process(proc.pid, proc.start_time)
+    if same then
+      vim.notify(("Killing stale process PID %d"):format(proc.pid))
+      pcall(vim.uv.kill, proc.pid, 15)
+    end
+      state_module.clear_running_process()
+    end
+end
+
 function M.stop()
   if state.job and state.job.kill then
     pcall(function() state.job:kill("sigterm") end)
   end
   state.job = nil
+  state.pid = nil
+  state_module.clear_running_process()
 end
 
 --- Run a command and stream output to the reusable buffer.
@@ -211,7 +234,7 @@ function M.start(cmd, opts)
   M.stop()
 
   -- Start new job; schedule all buffer writes to avoid E5560
-  state.job = vim.system(args, {
+  local job = vim.system(args, {
     cwd = opts.cwd,
     text = false,  -- stream raw bytes
     stdout = function(_, data)
@@ -222,10 +245,17 @@ function M.start(cmd, opts)
     end,
   }, vim.schedule_wrap(function(obj)
     append_chunk(("\n[process exited %d]\n"):format(obj.code))
+    state.job = nil
+    state.pid = nil
+    state_module.clear_running_process()
     if opts.on_exit then
       opts.on_exit(obj.code)
     end
   end))
+
+  state.job = job
+  state.pid = job.pid
+  state_module.save_running_process(job.pid, args, os.time())
 end
 
 return M

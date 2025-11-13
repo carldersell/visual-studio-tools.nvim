@@ -14,6 +14,20 @@ function M.setup(opts)
   if build_config then
     vim.notify("Build configuration: " .. build_config, vim.log.levels.INFO)
   end
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function()
+    local ok, runner = pcall(require, "vstools.build.runner_system")
+    if ok then
+      local proc = require("vstools.startup.state").get_running_process()
+      if proc and proc.pid then
+        vim.notify("Killing running process PID: " .. proc.pid, vim.log.levels.WARN)
+        runner.stop()
+      end
+      runner.delete_buffer()
+    end
+  end,
+})
 end
 
 -- Public API ----------------------------------------------------
