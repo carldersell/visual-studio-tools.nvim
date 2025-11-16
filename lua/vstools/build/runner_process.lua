@@ -119,6 +119,32 @@ end
 -- Schedule buffer mutations to avoid E5560 (fast event context)
 local append_chunk = vim.schedule_wrap(_append_chunk)
 
+-- Remove ANSI escape sequences + normalize CRLF/CR
+local function normalize_output(data)
+  if not data or data == "" then return data end
+
+  -- Remove OSC sequences: ESC ] ... BEL
+  data = data:gsub("\27%].-\7", "")
+
+  -- Remove cursor movement / screen control: ESC [ … H, A, B, C, D, J, K, etc.
+  data = data:gsub("\27%[[0-9;]*[HfABCDJKsu]", "")
+
+  -- Remove DEC private modes: ESC [ ? … h / l   (cursor show/hide, mouse modes, etc.)
+  data = data:gsub("\27%[%?%d+[hl]", "")
+
+  -- Remove CSI sequences: ESC [ ... command
+  data = data:gsub("\27%[[0-9;]*[A-Za-z]", "")
+
+  -- Remove single ESC commands: ESC + any byte in @-~
+  data = data:gsub("\27[@-~]", "")
+
+  -- Normalize Windows CRLF and lone CR
+  data = data:gsub("\r\n", "\n")
+  data = data:gsub("\r", "\n")
+
+  return data
+end
+
 -- ---------- Window / toggle ----------
 
 -- Create (or jump to) a floating window showing the build buffer,
@@ -251,7 +277,7 @@ function M.start(cmd, opts)
       pty = true,          -- ← PTY mode (safe!)
       on_stdout = function(_, data)
         for _, line in ipairs(data) do
-          append_chunk(line .. "\n")
+          append_chunk(normalize_output(line) .. "")
         end
       end,
       on_exit = function(_, code)
@@ -281,8 +307,8 @@ function M.start(cmd, opts)
   local job = vim.system(args, {
     cwd = opts.cwd,
     text = false,
-    stdout = function(_, d) if d then append_chunk(d) end end,
-    stderr = function(_, d) if d then append_chunk(d) end end,
+    stdout = function(_, d) if d then append_chunk(normalize_output(d)) end end,
+    stderr = function(_, d) if d then append_chunk(normalize_output(d)) end end,
   }, vim.schedule_wrap(function(obj)
     append_chunk("\n[process exited " .. obj.code .. "]\n")
     state.job = nil
