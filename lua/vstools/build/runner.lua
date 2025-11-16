@@ -27,12 +27,7 @@ function M.build_startup_project(opts)
     return
   end
 
-  local cmd, err
-  if opts.interactive then
-    cmd, err = msbuild.build_project_cmd_str(project, opts.conf)
-  else
-    cmd, err = msbuild.build_project_cmd_list(project, opts.conf)
-  end
+  local cmd, err = msbuild.build_project_cmd_list(project, opts.conf)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
@@ -43,12 +38,7 @@ end
 
 function M.build_solution(opts)
   opts = opts or {}
-  local cmd, err
-  if opts.interactive then
-    cmd, err = msbuild.build_solution_cmd_str(opts.conf)
-  else
-    cmd, err = msbuild.build_solution_cmd_list(opts.conf)
-  end
+  local cmd, err = msbuild.build_solution_cmd_list(opts.conf)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
@@ -65,12 +55,7 @@ function M.clean_startup_project(opts)
     return
   end
 
-  local cmd, err
-  if opts.interactive then
-    cmd, err = msbuild.clean_project_cmd_str(project, opts.conf)
-  else
-    cmd, err = msbuild.clean_project_cmd_list(project, opts.conf)
-  end
+  local cmd, err = msbuild.clean_project_cmd_list(project, opts.conf)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
@@ -81,12 +66,7 @@ end
 
 function M.clean_solution(opts)
   opts = opts or {}
-  local cmd, err
-  if opts.interactive then
-    cmd, err = msbuild.clean_solution_cmd_str(opts.conf)
-  else
-    cmd, err = msbuild.clean_solution_cmd_list(opts.conf)
-  end
+  local cmd, err = msbuild.clean_solution_cmd_list(opts.conf)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
@@ -144,13 +124,8 @@ function M.run_startup_project(opts)
   end
 
   local args = runargs.get_run_args_str()
-  local cmd
-  if opts.interactive then
-    cmd = string.format("%s'%s' %s", config.prepend_exe_path, exe, args)
-  else
-    cmd = { exe }
-    for word in string.gmatch(args, "%S+") do table.insert(cmd, word) end
-  end
+  local cmd = { exe }
+  for word in string.gmatch(args, "%S+") do table.insert(cmd, word) end
 
   start_job(cmd, opts)
 end

@@ -7,10 +7,6 @@ local DEFAULTS = {
   -- Set default build_config
   build_config = "Debug",
 
-  open_terminal = function(cmd)
-    require("floating_terminal").run_in_bottom_terminal(cmd)
-    vim.cmd("normal! G")
-  end,
   log_settings = {
     width = nil,
     height = nil,
