@@ -63,11 +63,13 @@ local function ensure_terminal_buf()
   local buf = api.nvim_create_buf(false, false)  -- NOT scratch since terminal requires a normal buffer
   state.buf_terminal = buf
 
+  vim.bo[buf].buftype   = "nofile"
   vim.bo[buf].bufhidden = "hide"
   vim.bo[buf].swapfile  = false
   vim.bo[buf].filetype  = "vstoolsterm"
-
   api.nvim_buf_set_name(buf, state.name_terminal)
+
+  api.nvim_buf_set_lines(buf, 0, -1, false, {})
   return buf
 end
 
@@ -79,15 +81,24 @@ local function find_window_for_buf(buf)
   end
 end
 
-local function clear_system_buffer()
-  if not (state.buf_system and api.nvim_buf_is_valid(state.buf_system)) then return end
-  api.nvim_buf_set_lines(state.buf_system, 0, -1, false, {})
+local function close_window_for_buf(buf)
+  local win = find_window_for_buf(buf)
+  if win then
+    pcall(api.nvim_win_close, win, true)
+    return true
+  end
+  return false
+end
+
+local function clear_buffer(buf)
+  if not (buf and api.nvim_buf_is_valid(buf)) then return end
+  api.nvim_buf_set_lines(buf, 0, -1, false, {})
   state.partial = ""
 end
 
 -- Append text in chunks, handling partial lines between chunks.
-local function _append_chunk_system(chunk)
-  local buf = ensure_system_buf()
+local function _append_chunk(chunk)
+  local buf = (state.mode == "system") and ensure_system_buf() or ensure_terminal_buf()
   local data = state.partial .. chunk
   local parts = vim.split(data, "\n", { plain = true })
   state.partial = table.remove(parts) or ""
@@ -99,14 +110,14 @@ local function _append_chunk_system(chunk)
 
   -- Auto-scroll if visible
   local win = find_window_for_buf(buf)
-  if win and api.nvim_win_is_valid(win) then
+  if win then
     local lastline = api.nvim_buf_line_count(buf)
     api.nvim_win_set_cursor(win, { lastline, 0 })
   end
 end
 
 -- Schedule buffer mutations to avoid E5560 (fast event context)
-local append_chunk_system = vim.schedule_wrap(_append_chunk_system)
+local append_chunk = vim.schedule_wrap(_append_chunk)
 
 -- ---------- Window / toggle ----------
 
@@ -120,15 +131,28 @@ function M.toggle_window(opts)
     and ensure_system_buf()
     or ensure_terminal_buf()
 
-  if not opts.keep_open then
-    local win = find_window_for_buf(buf)
-    if win then
-      pcall(api.nvim_win_close, win, true)
-      return
-    end
+  -- Case 1: explicit close request
+  if opts.keep_open == false then
+    close_window_for_buf(buf)
+    return
+  end
 
-    -- Check if we just want to close window
-    if opts.keep_open == false then return end
+  local existing = find_window_for_buf(buf)
+
+  -- Case 2: window already open AND user used toggle_window()
+  if existing and not opts.keep_open then
+    close_window_for_buf(buf)
+    return
+  end
+
+  -- Case 3: window is already open → DO NOT steal focus
+  if existing then
+    -- If cursor is inside window, scroll to bottom
+    local curwin = api.nvim_get_current_win()
+    if curwin == existing then
+      vim.cmd("normal! G")
+    end
+    return
   end
 
   -- Otherwise open (or focus) it using current config
@@ -146,16 +170,17 @@ function M.toggle_window(opts)
     height = height,
     style = "minimal",
     border = cfg.border,
-    title = " Build Log ",
+    title = (mode == "system") and " Build Log " or " Terminal Output ",
     title_pos = "center",
     noautocmd = true,
   })
 
   vim.wo[state.win].winhl = "FloatTitle:TelescopeBorder,NormalFloat:TelescopeNormal"
-  vim.cmd("normal! G")
   vim.wo[state.win].number = false
   vim.wo[state.win].relativenumber = false
   vim.wo[state.win].wrap = false
+  vim.cmd("normal! G")
+
 end
 
 -- ---------- Job control ----------
@@ -177,15 +202,17 @@ function M.clean_stale_processes()
 end
 
 function M.stop()
-  if state.job then pcall(vim.uv.kill, state.pid) end
+  if state.pid then
+    pcall(vim.uv.kill, state.pid)
+  end
   state.job = nil
   state.pid = nil
   state_module.clear_running_process()
 end
 
---- Run a command and stream output to the reusable buffer.
+--- Run a command (System or PTY) and stream output to reusable buffer
 --- @param cmd string|string[] command or {cmd, args...}
---- @param opts table|nil { cwd=string }
+--- @param opts table|nil { cwd=string, run_in_terminal=boolean, keep_open=boolean, clear_buffer=boolean, on_exit=function }
 function M.start(cmd, opts)
   opts = opts or {}
   local args = (type(cmd) == "table") and cmd or { cmd }
@@ -194,25 +221,41 @@ function M.start(cmd, opts)
   local new_mode = opts.run_in_terminal and "terminal" or "system"
   if new_mode ~= state.mode then
     -- Close current window
-    M.toggle_window({keep_open = false})
+    M.toggle_window({ keep_open = false })
   end
   state.mode = new_mode
 
-  M.toggle_window({ keep_open = true })
+  M.toggle_window({ keep_open = opts.keep_open})
 
-  if state.mode == "system" and opts.clear_buffer ~= false then
-    clear_system_buffer()
+  if opts.clear_buffer ~= false then
+    if state.mode == "system" then
+      clear_buffer(state.buf_system)
+    else
+      clear_buffer(state.buf_terminal)
+    end
   end
 
   -- Stop previous job
   M.stop()
 
+  -- Print command
+  local formatted = table.concat(args, " ")
+  append_chunk("$ " .. formatted .. "\n")
+
+  --------------------------------------------------------
+  -- TERMINAL (PTY) MODE
+  --------------------------------------------------------
   if state.mode == "terminal" then
-    state.job = vim.fn.jobstart(args, {
+    local job_id = vim.fn.jobstart(args, {
       cwd = opts.cwd,
-      term = true,    -- Puts job inside current window's buffer
-      stdout_buffered = false,
+      pty = true,          -- ← PTY mode (safe!)
+      on_stdout = function(_, data)
+        for _, line in ipairs(data) do
+          append_chunk(line .. "\n")
+        end
+      end,
       on_exit = function(_, code)
+        append_chunk("\n[Process exited " .. code .. "]\n")
         state.job = nil
         state.pid = nil
         state_module.clear_running_process()
@@ -220,26 +263,28 @@ function M.start(cmd, opts)
       end,
     })
 
-    if state.job > 0 then
-      state.pid = vim.fn.jobpid(state.job)
+    if job_id > 0 then
+      state.job = job_id
+      state.pid = vim.fn.jobpid(job_id)
       state_module.save_running_process(state.pid, args, os.time())
     else
-      vim.notify("Failed to start cmd: " .. cmd, vim.log.leve)
+      vim.notify("Failed to start terminal job", vim.log.levels.ERROR)
     end
 
     return
   end
 
-  local formatted = table.concat(args, " ")
-  append_chunk_system("$ " .. formatted .. "\n")
+  --------------------------------------------------------
+  -- SYSTEM MODE
+  --------------------------------------------------------
 
   local job = vim.system(args, {
     cwd = opts.cwd,
     text = false,
-    stdout = function(_, d) if d then append_chunk_system(d) end end,
-    stderr = function(_, d) if d then append_chunk_system(d) end end,
+    stdout = function(_, d) if d then append_chunk(d) end end,
+    stderr = function(_, d) if d then append_chunk(d) end end,
   }, vim.schedule_wrap(function(obj)
-    append_chunk_system("\n[process exited " .. obj.code .. "]\n")
+    append_chunk("\n[process exited " .. obj.code .. "]\n")
     state.job = nil
     state.pid = nil
     state_module.clear_running_process()

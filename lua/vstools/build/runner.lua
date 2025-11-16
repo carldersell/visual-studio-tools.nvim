@@ -179,12 +179,14 @@ function M.build_and_run(opts)
   start_job(cmd, {
     on_exit = function(code)
       if code == 0 then
+        opts.clear_buffer = true
+        opts.keep_open = false
         M.run_startup_project(opts)
       else
         vim.notify("Build failed, not running executable.", vim.log.levels.ERROR)
       end
     end,
-    run_in_terminal = true,
+    run_in_terminal = false,
   })
 end
 
