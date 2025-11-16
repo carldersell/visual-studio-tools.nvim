@@ -17,7 +17,7 @@ function M.setup(opts)
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()
-    local ok, runner = pcall(require, "vstools.build.runner_system")
+    local ok, runner = pcall(require, "vstools.build.runner_process")
     if ok then
       local proc = require("vstools.startup.state").get_running_process()
       if proc and proc.pid then
@@ -128,12 +128,12 @@ function M.build_and_run(opts)
       builder.build_and_run(opts)
 end
 
-function M.toggle_build_terminal()
-    require("vstools.build.runner_system").toggle_window()
+function M.toggle_build_terminal(opts)
+    require("vstools.build.runner_process").toggle_window(opts)
 end
 
 function M.stop_command()
-    require("vstools.build.runner_system").stop()
+    require("vstools.build.runner_process").stop()
 end
 
 return M

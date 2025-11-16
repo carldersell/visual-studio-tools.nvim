@@ -4,7 +4,7 @@ local config = require("vstools.config")
 local state = require("vstools.startup.state")
 local runargs = require("vstools.startup.runargs")
 local msbuild = require("vstools.build.msbuild")
-local system_runner = require("vstools.build.runner_system")
+local runner_process = require("vstools.build.runner_process")
 
 ------------------------------------------------------------
 -- Helpers
@@ -12,13 +12,7 @@ local system_runner = require("vstools.build.runner_system")
 
 local function start_job(cmd, opts)
   opts = opts or {}
-  if opts.interactive then
-    config.open_terminal(cmd)
-  else
-    system_runner.start(cmd, {
-      on_exit = opts.on_exit,
-    })
-  end
+  runner_process.start(cmd, opts)
 end
 
 ------------------------------------------------------------
@@ -146,7 +140,7 @@ function M.run_startup_project(opts)
 
   -- If gui flag is set, run interactively
   if state.get_gui_flag(project) then
-    opts.interactive = true
+    opts.run_in_terminal = true
   end
 
   local args = runargs.get_run_args_str()
@@ -190,7 +184,7 @@ function M.build_and_run(opts)
         vim.notify("Build failed, not running executable.", vim.log.levels.ERROR)
       end
     end,
-    interactive = false,
+    run_in_terminal = true,
   })
 end
 
