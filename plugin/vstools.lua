@@ -107,9 +107,18 @@ vim.api.nvim_create_user_command("VSBuildAndRun", function(opts)
       vstools.build_and_run(parse_args(opts.args))
 end, {nargs="*"})
 
-vim.api.nvim_create_user_command("VSToggleBuildTerminal", function()
-      vstools.toggle_build_terminal()
-end, {})
+vim.api.nvim_create_user_command("VSToggleBuildTerminal", function(opts)
+      local mode = nil
+      if opts and opts.args ~= "" then
+        mode = {mode = opts.args}
+      end
+      vstools.toggle_build_terminal(mode)
+end, {
+  nargs = '?',
+  complete = function()
+    return {"system", "terminal"}
+  end,
+})
 
 vim.api.nvim_create_user_command("VSStopCommand", function()
       vstools.stop_command()
