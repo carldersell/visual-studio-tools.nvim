@@ -156,6 +156,7 @@ function M.build_and_run(opts)
       if code == 0 then
         opts.clear_buffer = true
         opts.keep_open = false
+        opts.focus = false
         M.run_startup_project(opts)
       else
         vim.notify("Build failed, not running executable.", vim.log.levels.ERROR)

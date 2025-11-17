@@ -153,9 +153,12 @@ end
 function M.toggle_window(opts)
   opts = opts or {}
   local mode = opts.mode or state.mode
-  local buf = (mode == "system")
-    and ensure_system_buf()
-    or ensure_terminal_buf()
+  local buf = opts.buf
+  if buf == nil or buf < 0 then
+    buf = (mode == "system")
+      and ensure_system_buf()
+      or ensure_terminal_buf()
+  end
 
   -- Case 1: explicit close request
   if opts.keep_open == false then
@@ -187,8 +190,9 @@ function M.toggle_window(opts)
   local height = math.min(cfg.height, vim.o.lines - 2)
   local row = math.max(1, math.floor((vim.o.lines - height) / 2))
   local col = math.max(1, math.floor((vim.o.columns - width) / 2))
+  local focus = opts.focus ~= false
 
-  state.win = api.nvim_open_win(buf, true, {
+  state.win = api.nvim_open_win(buf, focus, {
     relative = "editor",
     row = row,
     col = col,
@@ -205,7 +209,7 @@ function M.toggle_window(opts)
   vim.wo[state.win].number = false
   vim.wo[state.win].relativenumber = false
   vim.wo[state.win].wrap = false
-  vim.cmd("normal! G")
+  if focus then vim.cmd("normal! G") end
 
 end
 
@@ -238,20 +242,41 @@ end
 
 --- Run a command (System or PTY) and stream output to reusable buffer
 --- @param cmd string|string[] command or {cmd, args...}
---- @param opts table|nil { cwd=string, run_in_terminal=boolean, keep_open=boolean, clear_buffer=boolean, on_exit=function }
+--- @param opts table|nil { cwd=string, run_in_terminal=boolean, keep_open=boolean, focus=boolean, clear_buffer=boolean, on_exit=function }
 function M.start(cmd, opts)
   opts = opts or {}
   local args = (type(cmd) == "table") and cmd or { cmd }
 
   -- detect mode
   local new_mode = opts.run_in_terminal and "terminal" or "system"
+
+  local was_focused = true
+  if opts.focus == false then
+    -- Check if old window is focused
+    local buf
+    if state.mode == "system" then
+      buf = state.buf_system
+    else
+      buf = state.buf_terminal
+    end
+    local buf_win = buf and find_window_for_buf(buf) or nil
+    local cur_win = api.nvim_get_current_win()
+    was_focused = buf_win ~= nil and cur_win == buf_win
+  end
+  -- Check window state and toggle off if we change mode
+  local was_open = state.win ~= nil and api.nvim_win_is_valid(state.win)
+  local is_open = was_open
   if new_mode ~= state.mode then
     -- Close current window
     M.toggle_window({ keep_open = false })
+    is_open = false
   end
   state.mode = new_mode
 
-  M.toggle_window({ keep_open = opts.keep_open})
+  local open_window = opts.keep_open ~= false
+  if state.win == nil or open_window or is_open ~= was_open then
+    M.toggle_window({ keep_open = true, focus = was_focused })
+  end
 
   if opts.clear_buffer ~= false then
     if state.mode == "system" then
