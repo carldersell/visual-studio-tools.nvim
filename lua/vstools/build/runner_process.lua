@@ -35,6 +35,10 @@ local state = {
   name_terminal= "VSTools Terminal",
 }
 
+function M.get_state()
+  return state
+end
+
 -- ---------- Buffer helpers ----------
 local function ensure_system_buf()
   if state.buf_system and api.nvim_buf_is_valid(state.buf_system) then

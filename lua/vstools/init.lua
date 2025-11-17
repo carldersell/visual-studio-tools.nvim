@@ -136,4 +136,8 @@ function M.stop_command()
     require("vstools.build.runner_process").stop()
 end
 
+function M.get_run_state()
+    return require("vstools.build.runner_process").get_state()
+end
+
 return M

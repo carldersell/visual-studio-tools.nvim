@@ -123,3 +123,7 @@ end, {
 vim.api.nvim_create_user_command("VSStopCommand", function()
       vstools.stop_command()
 end, {})
+
+vim.api.nvim_create_user_command("VSShowRunState", function()
+      vim.notify(vim.inspect(vstools.get_run_state()), vim.log.levels.INFO)
+end, {})
