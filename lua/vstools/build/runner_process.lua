@@ -314,7 +314,11 @@ function M.start(cmd, opts)
         state.job = nil
         state.pid = nil
         state_module.clear_running_process()
-        if opts.on_exit then opts.on_exit(code) end
+        if code == 0 then
+          if opts.on_exit then opts.on_exit(code) end
+        else
+          M.toggle_window({ keep_open = true })
+        end
       end,
     })
 
@@ -343,7 +347,11 @@ function M.start(cmd, opts)
     state.job = nil
     state.pid = nil
     state_module.clear_running_process()
-    if opts.on_exit then opts.on_exit(obj.code) end
+    if obj.code == 0 then
+      if opts.on_exit then opts.on_exit(obj.code) end
+    else
+      M.toggle_window({ keep_open = true })
+    end
   end))
 
   state.job = job
