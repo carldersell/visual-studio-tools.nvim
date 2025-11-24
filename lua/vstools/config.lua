@@ -7,6 +7,9 @@ local DEFAULTS = {
   -- Set default build_config
   build_config = "Debug",
 
+  -- Set how settings are presented [automatic, line, row]
+  setting_presentation = "automatic",
+
   log_settings = {
     width = nil,
     height = nil,
@@ -17,6 +20,19 @@ local DEFAULTS = {
 ----------------------------------------------------------------------
 -- Validation helpers
 ----------------------------------------------------------------------
+
+-- Normalize and validate setting_presentation
+local function normalize_setting_presentation(value)
+  if value == nil then return nil end
+  if type(value) ~= "string" then
+    error("vstools.config: setting_presentation must be a string (got " .. type(value) .. ")")
+  end
+  local lower = value:lower()
+  if lower == "line" then return "line" end
+  if lower == "row" then return "row" end
+  if lower == "automatic" then return "automatic" end
+  error("vstools.config: setting_presentation must be 'line', 'row' or 'automatic' (got '" .. value .. "')")
+end
 
 -- Normalize and validate build_config
 local function normalize_build_config(value)
@@ -142,6 +158,10 @@ function M.setup(user_opts)
   -- 2) Validate & normalize specific fields
   --    (Run before copying into M, so we fail fast without mutating live config)
   validate_log_settings(merged.log_settings)
+
+  if merged.setting_presentation ~= nil then
+    merged.setting_presentation = normalize_setting_presentation(merged.setting_presentation)
+  end
 
   if merged.build_config ~= nil then
     merged.build_config = normalize_build_config(merged.build_config)

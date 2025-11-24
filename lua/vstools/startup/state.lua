@@ -49,6 +49,7 @@ end
 local function ensure_startup_project(ws, project_path)
   ws.startup_projects[project_path] = ws.startup_projects[project_path] or {
     run_args = {},
+    run_args_mode = require("vstools.config").setting_presentation,
     environment = {},
     gui = false,
   }
@@ -161,7 +162,13 @@ function M.get_run_args(project_path)
   return settings.run_args or {}
 end
 
-function M.set_run_args(groups, project_path)
+function M.get_run_args_mode(project_path)
+  local settings = M.get_project_settings(project_path)
+  if not settings then return nil end
+  return settings.run_args_mode or nil
+end
+
+function M.set_run_args(groups, project_path, save_mode)
   local cfg = load()
   local ws = ensure_workspace(cfg)
 
@@ -173,6 +180,8 @@ function M.set_run_args(groups, project_path)
 
   local ps = ensure_startup_project(ws, project_path)
   ps.run_args = groups or {}
+
+  ps.run_args_mode = save_mode or require("vstools.config").setting_presentation
 
   save(cfg)
   vim.notify("Run arguments saved for project: " .. project_path, vim.log.levels.INFO)

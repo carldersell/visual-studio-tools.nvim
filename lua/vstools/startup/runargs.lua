@@ -1,4 +1,5 @@
 local state = require("vstools.startup.state")
+local config = require("vstools.config")
 
 local M = {}
 
@@ -64,6 +65,16 @@ local function windows_paths(text)
   result = result:gsub("([^\\])\\$", "%1\\\\")
 
   return result
+end
+
+local function count_non_empty_lines(text)
+  local count = 0
+  for line in text:gmatch("[^\n]*") do
+    if line:match("%S") then  -- %S means "any non-whitespace character"
+      count = count + 1
+    end
+  end
+  return count
 end
 -----------------------------------------------------------------------
 -- Parse raw text into grouped arguments:
@@ -148,11 +159,13 @@ end
 -- GROUPS → TEXT
 ------------------------------------------------------------------------
 function M.groups_to_text(groups)
+  if groups == {} then return "" end
   local lines = {}
   for _, grp in ipairs(groups) do
     table.insert(lines, table.concat(grp, " "))
   end
-  return table.concat(lines, "\n")
+  local tmp = table.concat(lines, "\n")
+  return tmp:gsub("\n$", "")
 end
 
 ------------------------------------------------------------------------
@@ -171,6 +184,16 @@ function M.groups_to_arg_string(groups)
     end
   end
   return table.concat(flat, " ")
+end
+
+------------------------------------------------------------------------
+-- lines → Same format as entered
+------------------------------------------------------------------------
+local function line_to_provided_format(lines, mode)
+  if mode == "line" then
+    return {table.concat(lines, " ")}
+  end
+  return lines
 end
 
 -----------------------------------------------------------------------
@@ -200,9 +223,24 @@ function M.open_runargs_editor(opts)
   if text == "" then
     lines = { "" }
   else
-    for ln in text:gmatch("([^\n]*)\n?") do
+    for ln in text:gmatch("([^\n]+)\n?") do
       table.insert(lines, ln)
     end
+  end
+
+  -- Check how keys should be presented
+  if opts and opts.presentation_mode then
+    local mode = opts.presentation_mode
+    if opts.presentation_mode == "automatic" then
+      mode = state.get_run_args_mode()
+    end
+    lines = line_to_provided_format(lines, mode)
+  else
+    local mode = config.setting_presentation or state.get_run_args_mode()
+    if mode == "automatic" then
+      mode = state.get_run_args_mode()
+    end
+    lines = line_to_provided_format(lines, mode)
   end
 
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -238,8 +276,9 @@ function M.open_runargs_editor(opts)
       local contents = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
       local raw = table.concat(contents, "\n")
       local parsed_groups = M.parse_run_args_text_to_groups(raw)
+      local mode = count_non_empty_lines(raw) > 1 and "row" or "line"
 
-      state.set_run_args(parsed_groups)
+      state.set_run_args(parsed_groups, nil, mode)
 
       if vim.api.nvim_win_is_valid(win) then
         vim.api.nvim_win_close(win, true)
