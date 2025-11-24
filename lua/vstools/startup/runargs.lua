@@ -54,6 +54,17 @@ local function shell_tokenize(line)
   return tokens
 end
 
+local function windows_paths(text)
+
+  -- Match a single backslash that is NOT followed by another backslash
+  local result = text:gsub("([^\\])\\([^\\])", "%1\\\\%2")
+  -- Handle start of string
+  result = result:gsub("^\\([^\\])", "\\\\%1")
+  -- Handle end of string
+  result = result:gsub("([^\\])\\$", "%1\\\\")
+
+  return result
+end
 -----------------------------------------------------------------------
 -- Parse raw text into grouped arguments:
 -- {
@@ -67,6 +78,9 @@ function M.parse_run_args_text_to_groups(text)
   end
 
   text = text:gsub("\r\n", "\n")
+
+  -- Correctly parse windows paths
+  text = windows_paths(text)
 
   -- split into lines
   local lines = {}
