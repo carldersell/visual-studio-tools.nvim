@@ -35,7 +35,11 @@ function M.build_startup_project(opts)
   end
 
   if opts.env == nil then
+    if opts.clean_env == nil then
+      opts.clean_env = config.clean_env
+    end
     opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.clean_env = true
   end
 
   start_job(cmd, opts)
@@ -67,7 +71,11 @@ function M.clean_startup_project(opts)
   end
 
   if opts.env == nil then
+    if opts.clean_env == nil then
+      opts.clean_env = config.clean_env
+    end
     opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.clean_env = true
   end
 
   start_job(cmd, opts)
@@ -137,7 +145,11 @@ function M.run_startup_project(opts)
   for word in string.gmatch(args, "%S+") do table.insert(cmd, word) end
 
   if opts.env == nil then
+    if opts.clean_env == nil then
+      opts.clean_env = config.clean_env
+    end
     opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.clean_env = true
   end
 
   start_job(cmd, opts)
@@ -165,7 +177,11 @@ function M.build_and_run(opts)
   end
 
   if opts.env == nil then
+    if opts.clean_env == nil then
+      opts.clean_env = config.clean_env
+    end
     opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.clean_env = true
   end
 
   start_job(cmd, {

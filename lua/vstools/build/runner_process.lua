@@ -314,7 +314,7 @@ function M.start(cmd, opts)
           append_chunk(normalize_output(line) .. "")
         end
       end,
-      clear_env = true,
+      clear_env = opts.clean_env == true,
       env = opts.env,
       on_exit = function(_, code)
         append_chunk("\n[Process exited " .. code .. "]\n")
@@ -346,7 +346,7 @@ function M.start(cmd, opts)
 
   local job = vim.system(args, {
     cwd = opts.cwd,
-    clear_env = true,
+    clear_env = opts.clean_env == true,
     env = opts.env,
     text = false,
     stdout = function(_, d) if d then append_chunk(normalize_output(d)) end end,

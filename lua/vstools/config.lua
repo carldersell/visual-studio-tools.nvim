@@ -10,6 +10,9 @@ local DEFAULTS = {
   -- Set how settings are presented [automatic, line, row]
   setting_presentation = "automatic",
 
+  -- Set if we should build and run in clean environment [true, false]
+  clean_env = false,
+
   log_settings = {
     width = nil,
     height = nil,
@@ -20,6 +23,14 @@ local DEFAULTS = {
 ----------------------------------------------------------------------
 -- Validation helpers
 ----------------------------------------------------------------------
+
+local function validate_bool(name, value)
+  if value == nil then return nil end
+  if type(value) ~= "boolean" then
+    error("vstools.config: " .. name .. " must be a boolean (got " .. type(value) .. ")")
+  end
+  return value
+end
 
 -- Normalize and validate setting_presentation
 local function normalize_setting_presentation(value)
@@ -172,6 +183,12 @@ function M.setup(user_opts)
   else
     -- If user provided nil, try to validate the default/path form as well
     merged.msbuild_path = normalize_msbuild_path(DEFAULTS.msbuild_path)
+  end
+
+  if merged.clean_env ~= nil then
+    merged.clean_env = validate_bool("clean_env", merged.clean_env)
+  else
+    merged.clean_env = validate_bool("clean_env", DEFAULTS.clean_env)
   end
 
   -- 3) Commit into the live table M (preserve identity)
