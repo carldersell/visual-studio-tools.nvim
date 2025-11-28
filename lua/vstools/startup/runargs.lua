@@ -1,5 +1,6 @@
 local state = require("vstools.startup.state")
 local config = require("vstools.config")
+local utils = require("vstools.startup.utils")
 
 local M = {}
 
@@ -55,27 +56,6 @@ local function shell_tokenize(line)
   return tokens
 end
 
-local function windows_paths(text)
-
-  -- Match a single backslash that is NOT followed by another backslash
-  local result = text:gsub("([^\\])\\([^\\])", "%1\\\\%2")
-  -- Handle start of string
-  result = result:gsub("^\\([^\\])", "\\\\%1")
-  -- Handle end of string
-  result = result:gsub("([^\\])\\$", "%1\\\\")
-
-  return result
-end
-
-local function count_non_empty_lines(text)
-  local count = 0
-  for line in text:gmatch("[^\n]*") do
-    if line:match("%S") then  -- %S means "any non-whitespace character"
-      count = count + 1
-    end
-  end
-  return count
-end
 -----------------------------------------------------------------------
 -- Parse raw text into grouped arguments:
 -- {
@@ -91,7 +71,7 @@ function M.parse_run_args_text_to_groups(text)
   text = text:gsub("\r\n", "\n")
 
   -- Correctly parse windows paths
-  text = windows_paths(text)
+  text = utils.windows_paths(text)
 
   -- split into lines
   local lines = {}
@@ -208,14 +188,6 @@ function M.open_runargs_editor(opts)
 
   opts = opts or {}
 
-  local buf = vim.api.nvim_create_buf(false, true) -- unlisted scratch
-  vim.api.nvim_buf_set_name(buf, "VSToolsRunArgs")
-
-  vim.bo[buf].buftype = "acwrite"
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].swapfile = false
-  vim.bo[buf].filetype = "vstools_runargs"
-
   local groups = state.get_run_args()
   local text = M.groups_to_text(groups)
   local lines = {}
@@ -229,64 +201,31 @@ function M.open_runargs_editor(opts)
   end
 
   -- Check how keys should be presented
+  local mode
   if opts and opts.presentation_mode then
-    local mode = opts.presentation_mode
+    mode = opts.presentation_mode
     if opts.presentation_mode == "automatic" then
       mode = state.get_run_args_mode()
     end
-    lines = line_to_provided_format(lines, mode)
   else
-    local mode = config.setting_presentation or state.get_run_args_mode()
+    mode = config.setting_presentation or state.get_run_args_mode()
     if mode == "automatic" then
       mode = state.get_run_args_mode()
     end
-    lines = line_to_provided_format(lines, mode)
   end
+  lines = line_to_provided_format(lines, mode)
 
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-
-  local win
-  if opts.floating ~= false then
-    local width = math.max(60, math.floor(vim.o.columns * 0.8))
-    local height = math.max(6, math.floor(vim.o.lines * 0.8))
-    local row = math.floor((vim.o.lines - height) / 2 - 1)
-    local col = math.floor((vim.o.columns - width) / 2)
-
-    win = vim.api.nvim_open_win(buf, true, {
-      relative = "editor",
-      width = width,
-      height = height,
-      row = row,
-      col = col,
-      border = "rounded",
-      style = "minimal",
-      title = " Command arguments ",
-      title_pos = "center",
-    })
-    vim.wo[win].winhl = "FloatTitle:TelescopeBorder,NormalFloat:TelescopeNormal"
-  else
-    vim.api.nvim_set_current_buf(buf)
-    win = vim.api.nvim_get_current_win()
-  end
-
-  -- ✅ Save on :w
-  vim.api.nvim_create_autocmd("BufWriteCmd", {
-    buffer = buf,
-    callback = function()
-      local contents = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-      local raw = table.concat(contents, "\n")
+  local buf = utils.open_editor({
+    name = "VSToolsRunArgs",
+    title = " Command arguments ",
+    filetype = "vstools_runargs",
+    lines = lines,
+    on_save = function(raw)
       local parsed_groups = M.parse_run_args_text_to_groups(raw)
-      local mode = count_non_empty_lines(raw) > 1 and "row" or "line"
-
-      state.set_run_args(parsed_groups, nil, mode)
-
-      if vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_win_close(win, true)
-      end
-      if vim.api.nvim_buf_is_valid(buf) then
-        vim.api.nvim_buf_delete(buf, { force = true })
-      end
+      local inferred_mode = utils.count_non_empty_lines(raw) > 1 and "row" or "line"
+      state.set_run_args(parsed_groups, nil, inferred_mode)
     end,
+    floating = (opts.floating ~= false),
   })
 
   return buf
