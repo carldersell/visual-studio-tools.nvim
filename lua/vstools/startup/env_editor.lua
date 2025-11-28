@@ -4,9 +4,9 @@ local state  = require("vstools.startup.state")
 
 local M = {}
 
+local valid_variable_characters = "[A-Za-z_][A-Za-z0-9_]"
 local function valid_name(name)
-  -- Accept typical env var names (POSIX + common Windows)
-  return name and name:match("^[A-Za-z_][A-Za-z0-9_]*$")
+  return name and name:match(string.format("^%s*$", valid_variable_characters))
 end
 
 -- Parse text like:
@@ -16,8 +16,6 @@ end
 -- Comments with # or //, blank lines ignored.
 function M.parse_env_text(text)
   local env = {}
-  local sep = utils.path_sep()
-  local sep_char = sep -- single char by design
 
   text = (text or ""):gsub("\r\n", "\n")
 
@@ -26,14 +24,7 @@ function M.parse_env_text(text)
     if raw ~= "" and not raw:match("^%s*[#/]") and not raw:match("^%s*//") then
       local name, rhs = raw:match("^%s*([%w_]+)%s*=%s*(.+)$")
       if name and rhs and valid_name(name) then
-        -- Split RHS by sep with quoting/escapes
-        local parts = utils.split_values(rhs, sep_char)
-        -- Optionally fix Windows backslashes in each part
-        if utils.is_windows() then
-          for i = 1, #parts do parts[i] = utils.windows_paths(parts[i]) end
-        end
-        -- Recompose normalized value string
-        env[name] = table.concat(parts, sep)
+        table.insert(env, {name, rhs})
       else
         -- Silently ignore invalid lines or report:
         vim.schedule(function()
@@ -46,49 +37,63 @@ function M.parse_env_text(text)
   return env
 end
 
--- Format env table back to text lines: NAME = v1 sep v2 …
+-- Format env table back to text lines: NAME = v1sepv2 …
 function M.env_to_text(env)
-  local sep = utils.path_sep()
   local lines = {}
-  for k, v in pairs(env or {}) do
-    -- Split existing composite value to show normalized entries
-    local parts = utils.split_values(v, sep)
-    table.insert(lines, string.format("%s = %s", k, table.concat(parts, " " .. sep .. " ")))
+
+  for _, pair in ipairs(env or {}) do
+    local name, rhs = pair[1], pair[2]
+    -- Show RHS exactly as stored (no recomputing, no splitting)
+    table.insert(lines, string.format("%s = %s", name, rhs))
   end
-  table.sort(lines) -- deterministic order
+
   return table.concat(lines, "\n")
 end
 
--- Merge PATH with extra entries; deduplicate while keeping order
-local function merge_path(cur, extras)
-  local sep = utils.path_sep()
-  local seen, out = {}, {}
-  local function push_list(list)
-    for _, p in ipairs(list) do
-      local n = utils.trim(p)
-      if n ~= "" and not seen[n] then
-        seen[n] = true
-        table.insert(out, n)
-      end
-    end
-  end
-  push_list(utils.split_values(cur or "", sep))
-  push_list(extras)
-  return table.concat(out, sep)
-end
-
--- Build env to pass to job, optionally extending PATH
+-- Build env to pass to job
 function M.build_effective_env(user_env, opts)
   opts = opts or {}
   local clear_env = opts.clear_env or false
-  local base_env = clear_env and {} or vim.fn.environ()
-  local result = vim.tbl_extend("force", base_env, user_env or {})
+  local old_environment = vim.fn.environ()
+  local base_env  = clear_env and {} or old_environment
 
-  -- If user provided PATH as composite string, keep as-is.
-  -- If user provided PATH parts list via opts.path_add, merge.
-  if opts.path_add and #opts.path_add > 0 then
-    result.PATH = merge_path(result.PATH or vim.fn.getenv("PATH") or "", opts.path_add)
+  -- result begins as a copy of base_env
+  local result = vim.tbl_extend("force", {}, base_env)
+
+  local sep = utils.path_sep()
+
+  -- interpret each user-defined variable
+  for _, pair in pairs(user_env or {}) do
+    local name, rhs = pair[1], pair[2]
+
+    -- Windows: environment variable names are case-insensitive
+    -- and Neovim/Win32 uppercases all variable names.
+    if utils.is_windows() then
+      name = name:upper()
+    end
+
+    -- 1. expand $VAR placeholders
+    local expanded = rhs:gsub(string.format("%%$(%s+)", valid_variable_characters), function(var)
+      if utils.is_windows() then
+        var = var:upper()
+      end
+      return result[var] or old_environment[var] or ""
+    end)
+
+    -- 2. Windows path normalization
+    if utils.is_windows() then
+      expanded = utils.windows_paths(expanded)
+    end
+
+    -- 3. split composite value into parts respecting quotes
+    local parts = utils.split_values(expanded, sep)
+
+    -- 4. normalize list
+    local normalized = table.concat(parts, sep)
+
+    result[name] = normalized
   end
+
   return result
 end
 
