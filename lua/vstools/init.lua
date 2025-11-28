@@ -81,6 +81,10 @@ function M.edit_run_args()
   return require("vstools.startup.runargs").open_runargs_editor({floating = true})
 end
 
+function M.edit_environment()
+  return require("vstools.startup.env_editor").open_env_editor({floating = true})
+end
+
 function M.get_project_settings()
   local state = require("vstools.startup.state")
   local settings = state.get_project_settings(state.get_current_startup_project())

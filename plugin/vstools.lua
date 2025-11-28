@@ -68,6 +68,10 @@ vim.api.nvim_create_user_command("VSEditRunArgs", function()
   vstools.edit_run_args()
 end, {})
 
+vim.api.nvim_create_user_command("VSEditEnv", function()
+  vstools.edit_environment()
+end, {})
+
 vim.api.nvim_create_user_command("VSProjectSetGuiFlag", function(opts)
   local flag = opts.args
   vstools.set_project_gui_flag(flag)
