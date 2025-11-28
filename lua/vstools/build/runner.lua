@@ -5,6 +5,7 @@ local state = require("vstools.startup.state")
 local runargs = require("vstools.startup.runargs")
 local msbuild = require("vstools.build.msbuild")
 local runner_process = require("vstools.build.runner_process")
+local env_editor = require("vstools.startup.env_editor")
 
 ------------------------------------------------------------
 -- Helpers
@@ -33,6 +34,10 @@ function M.build_startup_project(opts)
     return
   end
 
+  if opts.env == nil then
+    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+  end
+
   start_job(cmd, opts)
 end
 
@@ -59,6 +64,10 @@ function M.clean_startup_project(opts)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
+  end
+
+  if opts.env == nil then
+    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
   end
 
   start_job(cmd, opts)
@@ -127,6 +136,10 @@ function M.run_startup_project(opts)
   local cmd = { exe }
   for word in string.gmatch(args, "%S+") do table.insert(cmd, word) end
 
+  if opts.env == nil then
+    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+  end
+
   start_job(cmd, opts)
 end
 
@@ -149,6 +162,10 @@ function M.build_and_run(opts)
   if not cmd and err then
     vim.notify(err, vim.log.levels.ERROR)
     return
+  end
+
+  if opts.env == nil then
+    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
   end
 
   start_job(cmd, {

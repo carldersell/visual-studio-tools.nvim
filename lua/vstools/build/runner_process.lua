@@ -251,6 +251,11 @@ function M.start(cmd, opts)
   opts = opts or {}
   local args = (type(cmd) == "table") and cmd or { cmd }
 
+  -- Check working directory
+  if opts.cwd == nil then
+    opts.cwd = vim.uv.cwd()
+  end
+
   -- detect mode
   local new_mode = opts.run_in_terminal and "terminal" or "system"
 
@@ -309,6 +314,8 @@ function M.start(cmd, opts)
           append_chunk(normalize_output(line) .. "")
         end
       end,
+      clear_env = true,
+      env = opts.env,
       on_exit = function(_, code)
         append_chunk("\n[Process exited " .. code .. "]\n")
         state.job = nil
@@ -339,6 +346,8 @@ function M.start(cmd, opts)
 
   local job = vim.system(args, {
     cwd = opts.cwd,
+    clear_env = true,
+    env = opts.env,
     text = false,
     stdout = function(_, d) if d then append_chunk(normalize_output(d)) end end,
     stderr = function(_, d) if d then append_chunk(normalize_output(d)) end end,
