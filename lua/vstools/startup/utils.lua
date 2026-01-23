@@ -1,6 +1,8 @@
 -- lua/vstools/util.lua
 local U = {}
 
+local editors = {}
+
 function U.is_windows()
   return vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
   -- return package.config:sub(1,1) == "\\"
@@ -81,11 +83,23 @@ end
 -- General-purpose floating editor creator; calls on_save(raw_text) on :w
 function U.open_editor(opts)
   opts = opts or {}
+
+  local win_id = opts.id or opts.name
+  assert(win_id, "open_editor requires opts.name or opts.id")
   local title = opts.title or " Editor "
   local lines = opts.lines or { "" }
   local floating = (opts.floating ~= false)
   local on_save = assert(opts.on_save, "open_editor requires opts.on_save")
 
+  -- Check if window is already open, then refocus
+  editors[win_id] = editors[win_id] or {}
+  local state = editors[win_id]
+  if state.win and vim.api.nvim_win_is_valid(state.win) and state.buf and vim.api.nvim_buf_is_valid(state.buf) then
+    vim.api.nvim_set_current_win(state.win)
+    return state.buf
+  end
+
+  -- Create buffer
   local buf = vim.api.nvim_create_buf(false, true) -- unlisted scratch
   vim.api.nvim_buf_set_name(buf, opts.name or title:gsub("%s", ""))
   vim.bo[buf].buftype = "acwrite"
@@ -113,6 +127,10 @@ function U.open_editor(opts)
     win = vim.api.nvim_get_current_win()
   end
 
+  -- Save instance
+  state.buf = buf
+  state.win = win
+
   vim.api.nvim_create_autocmd("BufWriteCmd", {
     buffer = buf,
     callback = function()
@@ -123,9 +141,22 @@ function U.open_editor(opts)
         vim.notify("Save failed: " .. tostring(err), vim.log.levels.ERROR)
         return
       end
+
+      -- Cleanup
       if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
       if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_delete(buf, { force = true }) end
+      editors[win_id] = nil
     end,
+  })
+
+  -- Cleanup if user closes window manually
+  vim.api.nvim_create_autocmd("WinClosed", {
+    callback = function(args)
+      if tonumber(args.match) == win then
+        editors[win_id] = nil
+      end
+    end,
+    once = true,
   })
 
   return buf
