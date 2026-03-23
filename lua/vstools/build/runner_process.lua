@@ -304,7 +304,7 @@ function M.start(cmd, opts)
   state.errors_set = {}
 
   -- detect mode
-  local new_mode = opts.run_in_terminal and "terminal" or "system"
+  local new_mode = opts.mode or (opts.run_in_terminal and "terminal" or "system")
 
   local was_focused = true
   if opts.focus == false then

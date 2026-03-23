@@ -63,7 +63,7 @@ end
 function M.get_build_config()
   local cfg = load()
   local ws = ensure_workspace(cfg)
-  return ws.build_config or require("vstools.comfig").build_config
+  return ws.build_config or require("vstools.config").build_config
 end
 
 function M.set_build_config(conf)
