@@ -33,6 +33,8 @@ local state = {
   partial      = "",
   name_system  = "VSTools Build",
   name_terminal= "VSTools Terminal",
+  errors = {},
+  errors_set = {},
 }
 
 function M.get_state()
@@ -98,6 +100,47 @@ local function clear_buffer(buf)
   if not (buf and api.nvim_buf_is_valid(buf)) then return end
   api.nvim_buf_set_lines(buf, 0, -1, false, {})
   state.partial = ""
+end
+
+-- Parse log for errors
+local function parse_msbuild_error(line)
+  -- Pattern: file(line,col): error Cxxxx: message
+  local file, line_num, col, msg = line:match([[^%s*([^%(]+)%((%d+),(%d+)%)%s*:%s*error%s+[%w%d]+%s*:%s*(.+)]])
+  if file then
+    return {
+      filename = file,
+      lnum = tonumber(line_num),
+      col = tonumber(col),
+      text = msg,
+      type = "E",
+    }
+  end
+
+  -- Pattern: file(line): fatal error ...
+  local file2, line2, msg2 = line:match([[^%s*([^%(]+)%((%d+)%)%s*:%s*fatal error%s+[%w%d]+%s*:%s*(.+)]])
+  if file2 then
+    return {
+      filename = file2,
+      lnum = tonumber(line2),
+      col = 1,
+      text = msg2,
+      type = "E",
+    }
+  end
+
+  -- Pattern: PROJECT : error PRJxxxx : message
+  local proj, code, msg3 = line:match([[^(.+)%s*:%s*error%s+(PRJ[%d]+)%s*:%s*(.+)]])
+  if proj then
+    return {
+      filename = proj,
+      lnum = 1,
+      col = 1,
+      text = code .. ": " .. msg3,
+      type = "E",
+    }
+  end
+
+  return nil
 end
 
 -- Append text in chunks, handling partial lines between chunks.
@@ -256,6 +299,10 @@ function M.start(cmd, opts)
     opts.cwd = vim.uv.cwd()
   end
 
+  -- Reset errors
+  state.errors = {}
+  state.errors_set = {}
+
   -- detect mode
   local new_mode = opts.run_in_terminal and "terminal" or "system"
 
@@ -310,8 +357,24 @@ function M.start(cmd, opts)
       cwd = opts.cwd,
       pty = true,          -- ← PTY mode (safe!)
       on_stdout = function(_, data)
-        for _, line in ipairs(data) do
-          append_chunk(normalize_output(line) .. "")
+        for _, raw_line in ipairs(data) do
+          -- 1. Parse errors before normalization
+          local err = parse_msbuild_error(raw_line)
+          if err then
+            local err_key = string.format("%s:%d:%d:%s",
+              err.filename,
+              err.lnum or 0,
+              err.col or 0,
+              err.text or ""
+            )
+            if not state.errors_set[err_key] then
+              state.errors_set[err_key] = true
+              table.insert(state.errors, err)
+            end
+          end
+
+          -- 2. Append normalized line to buffer
+          append_chunk(normalize_output(raw_line) .. "")
         end
       end,
       clear_env = opts.clean_env == true,
@@ -324,6 +387,12 @@ function M.start(cmd, opts)
         if code == 0 then
           if opts.on_exit then opts.on_exit(code) end
         else
+          if #state.errors > 0 then
+            vim.fn.setqflist({}, " ", {
+                title = "MSBuild Errors",
+                items = state.errors,
+              })
+          end
           M.toggle_window({ keep_open = true })
         end
       end,
@@ -349,7 +418,25 @@ function M.start(cmd, opts)
     clear_env = opts.clean_env == true,
     env = opts.env,
     text = false,
-    stdout = function(_, d) if d then append_chunk(normalize_output(d)) end end,
+    stdout = function(_, d)
+      if not d then return end
+      for line in d:gmatch("[^\r\n]+") do
+        local err = parse_msbuild_error(line)
+        if err then
+          local err_key = string.format("%s:%d:%d:%s",
+            err.filename,
+            err.lnum or 0,
+            err.col or 0,
+            err.text or ""
+          )
+          if not state.errors_set[err_key] then
+            state.errors_set[err_key] = true
+            table.insert(state.errors, err)
+          end
+        end
+      end
+      append_chunk(normalize_output(d))
+    end,
     stderr = function(_, d) if d then append_chunk(normalize_output(d)) end end,
   }, vim.schedule_wrap(function(obj)
     append_chunk("\n[process exited " .. obj.code .. "]\n")
@@ -359,6 +446,12 @@ function M.start(cmd, opts)
     if obj.code == 0 then
       if opts.on_exit then opts.on_exit(obj.code) end
     else
+      if #state.errors > 0 then
+        vim.fn.setqflist({}, " ", {
+            title = "MSBuild Errors",
+            items = state.errors,
+          })
+      end
       M.toggle_window({ keep_open = true })
     end
   end))
