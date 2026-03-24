@@ -144,4 +144,16 @@ function M.get_run_state()
     return require("vstools.build.runner_process").get_state()
 end
 
+function M.set_quickfix_list()
+    local state = require("vstools.startup.state")
+    local build_errors = state.get_build_quickfix_list()
+    if #build_errors > 0 then
+        vim.fn.setqflist({}, " ", {
+            title = "MSBuild Errors",
+            items = build_errors,
+          })
+    end
+
+end
+
 return M

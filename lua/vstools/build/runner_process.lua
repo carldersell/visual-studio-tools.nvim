@@ -384,15 +384,10 @@ function M.start(cmd, opts)
         state.job = nil
         state.pid = nil
         state_module.clear_running_process()
+        state_module.save_build_quickfix_list(state.errors)
         if code == 0 then
           if opts.on_exit then opts.on_exit(code) end
         else
-          if #state.errors > 0 then
-            vim.fn.setqflist({}, " ", {
-                title = "MSBuild Errors",
-                items = state.errors,
-              })
-          end
           M.toggle_window({ keep_open = true })
         end
       end,
@@ -443,15 +438,10 @@ function M.start(cmd, opts)
     state.job = nil
     state.pid = nil
     state_module.clear_running_process()
+    state_module.save_build_quickfix_list(state.errors)
     if obj.code == 0 then
       if opts.on_exit then opts.on_exit(obj.code) end
     else
-      if #state.errors > 0 then
-        vim.fn.setqflist({}, " ", {
-            title = "MSBuild Errors",
-            items = state.errors,
-          })
-      end
       M.toggle_window({ keep_open = true })
     end
   end))

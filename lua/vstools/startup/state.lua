@@ -42,6 +42,7 @@ local function ensure_workspace(tbl)
     solution_file = require("vstools.solution.discovery").find_solution(key),
     process = {},
     startup_projects = {},
+    build_qfl = {},
   }
   return tbl[key]
 end
@@ -107,6 +108,23 @@ function M.set_solution_path(sol_path)
     ws.solution_file = sol_path or require("vstools.solution.discovery").find_solution()
     save(cfg)
     vim.notify("Solution file set to: " .. ws.solution_file, vim.log.levels.INFO)
+end
+
+-- Save build quickfix list
+function M.save_build_quickfix_list(qfl)
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+  ws.build_qfl = qfl
+  save(cfg)
+  if #qfl > 0 then
+    vim.notify("Build errors avaiable in quickfix list via set_quickfix_list", vim.log.levels.INFO)
+  end
+end
+
+function M.get_build_quickfix_list()
+  local cfg = load()
+  local ws = ensure_workspace(cfg)
+  return ws.build_qfl or {}
 end
 
 -- Process state

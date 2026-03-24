@@ -131,3 +131,7 @@ end, {})
 vim.api.nvim_create_user_command("VSShowRunState", function()
       vim.notify(vim.inspect(vstools.get_run_state()), vim.log.levels.INFO)
 end, {})
+
+vim.api.nvim_create_user_command("VSSetQuickFixList", function()
+      vstools.set_quickfix_list()
+end, {})
