@@ -104,14 +104,17 @@ end
 
 -- Parse log for errors
 local function parse_msbuild_error(line)
-  -- Pattern: file(line,col): error Cxxxx: message
-  local file, line_num, col, msg = line:match([[^%s*([^%(]+)%((%d+),(%d+)%)%s*:%s*error%s+[%w%d]+%s*:%s*(.+)]])
-  if file then
+  -- Pattern: file(line,col): error code: message
+  local file, line_num, col, code, msg =
+    line:match([[^%s*([^%(]+)%((%d+),(%d+)%)%s*:%s*error%s+([%w%d]+)%s*:%s*(.+)]])
+
+  -- Ignore MSBuild internal error codes (MSBxxxx)
+  if file and code and not code:match("^MSB%d+") then
     return {
       filename = file,
       lnum = tonumber(line_num),
       col = tonumber(col),
-      text = msg,
+      text = code .. ": " .. msg,
       type = "E",
     }
   end
