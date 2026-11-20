@@ -51,9 +51,11 @@ function M.env_to_text(env)
 end
 
 local function capture_script_env(script, env, cwd)
+  local script_dir = vim.fn.fnamemodify(script, ":p:h")
+  local script_name = vim.fn.fnamemodify(script, ":t")
+
   local is_windows = utils.is_windows()
   local cmd
-
   if is_windows then
     local cmd_exe = vim.fn.exepath("cmd.exe")
     if cmd_exe == "" then
@@ -63,10 +65,8 @@ local function capture_script_env(script, env, cwd)
     cmd = {
       cmd_exe,
       "/d",
-      "/s",
       "/c",
-      -- 'call "' .. script .. '" >nul && set',
-      "call " .. script .. " >nul && set",
+      "call " .. script_name .. " >nul && set",
     }
   else
     local bash = vim.fn.exepath("bash")
@@ -79,12 +79,12 @@ local function capture_script_env(script, env, cwd)
       "-c",
       'source "$1" >/dev/null && /usr/bin/env -0',
       "bash",
-      script,
+      script_name,
     }
   end
 
   local result = vim.system(cmd, {
-    cwd = cwd,
+    cwd = script_dir,
     env = env,
     clear_env = true,
     text = true,
