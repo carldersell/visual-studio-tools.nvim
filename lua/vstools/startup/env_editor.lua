@@ -50,19 +50,80 @@ function M.env_to_text(env)
   return table.concat(lines, "\n")
 end
 
--- Build env to pass to job
-function M.build_effective_env(user_env, opts)
-  opts = opts or {}
-  local clear_env = opts.clear_env or false
-  local old_environment = vim.fn.environ()
-  local base_env  = clear_env and {} or old_environment
+local function capture_script_env(script, env, cwd)
+  local is_windows = utils.is_windows()
+  local cmd
 
-  -- result begins as a copy of base_env
-  local result = vim.tbl_extend("force", {}, base_env)
+  if is_windows then
+    local cmd_exe = vim.fn.exepath("cmd.exe")
+    if cmd_exe == "" then
+      cmd_exe = "cmd.exe"
+    end
 
+    cmd = {
+      cmd_exe,
+      "/d",
+      "/s",
+      "/c",
+      -- 'call "' .. script .. '" >nul && set',
+      "call " .. script .. " >nul && set",
+    }
+  else
+    local bash = vim.fn.exepath("bash")
+    if bash == "" then
+      bash = "/bin/bash"
+    end
+
+    cmd = {
+      bash,
+      "-c",
+      'source "$1" >/dev/null && /usr/bin/env -0',
+      "bash",
+      script,
+    }
+  end
+
+  local result = vim.system(cmd, {
+    cwd = cwd,
+    env = env,
+    clear_env = true,
+    text = true,
+  }):wait()
+
+  if result.code ~= 0 then
+    error(string.format(
+      "Failed to load environment script '%s': %s",
+      script,
+      result.stderr or "Unknown error"
+    ))
+  end
+
+  local captured = {}
+
+  if is_windows then
+    for line in result.stdout:gmatch("[^\r\n]+") do
+      local key, value = line:match("^([^=]+)=(.*)$")
+
+      if key and not key:match("^=") then
+        captured[key:upper()] = value
+      end
+    end
+  else
+    for entry in result.stdout:gmatch("[^\0]+") do
+      local key, value = entry:match("^([^=]+)=(.*)$")
+
+      if key then
+        captured[key] = value
+      end
+    end
+  end
+
+  return captured
+end
+
+local function apply_user_env(result, user_env, old_environment)
   local sep = utils.path_sep()
 
-  -- interpret each user-defined variable
   for _, pair in pairs(user_env or {}) do
     local name, rhs = pair[1], pair[2]
 
@@ -72,13 +133,17 @@ function M.build_effective_env(user_env, opts)
       name = name:upper()
     end
 
-    -- 1. expand $VAR placeholders
-    local expanded = rhs:gsub(string.format("%%$(%s+)", valid_variable_characters), function(var)
-      if utils.is_windows() then
-        var = var:upper()
+    -- 1. Expand $VAR placeholders using the current environment.
+    local expanded = rhs:gsub(
+      string.format("%%$(%s+)", valid_variable_characters),
+      function(var)
+        if utils.is_windows() then
+          var = var:upper()
+        end
+
+        return result[var] or old_environment[var] or ""
       end
-      return result[var] or old_environment[var] or ""
-    end)
+    )
 
     -- 2. Windows path normalization
     if utils.is_windows() then
@@ -89,10 +154,50 @@ function M.build_effective_env(user_env, opts)
     local parts = utils.split_values(expanded, sep)
 
     -- 4. normalize list
-    local normalized = table.concat(parts, sep)
-
-    result[name] = normalized
+    result[name] = table.concat(parts, sep)
   end
+
+  return result
+end
+
+-- Build env to pass to job
+function M.build_effective_env(user_env, opts)
+  opts = opts or {}
+
+  local old_environment = vim.fn.environ()
+  local base_env = opts.clear_env and {} or old_environment
+
+  local result = vim.tbl_extend("force", {}, base_env)
+
+  -- Extract MOD_ENV_SCRIPT without treating it as an actual env variable.
+  local env_script
+  local regular_env = {}
+
+  for _, pair in ipairs(user_env or {}) do
+    local name = pair[1]
+
+    if utils.is_windows() then
+      name = name:upper()
+    end
+
+    if name == "MOD_ENV_SCRIPT" then
+      env_script = pair[2]
+    else
+      table.insert(regular_env, pair)
+    end
+  end
+
+  -- Load the environment script first.
+  if env_script then
+    result = capture_script_env(
+      env_script,
+      result,
+      opts.cwd or vim.uv.cwd()
+    )
+  end
+
+  -- Explicit user variables override script values.
+  apply_user_env(result, regular_env, old_environment)
 
   return result
 end

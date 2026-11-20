@@ -16,6 +16,18 @@ local function start_job(cmd, opts)
   runner_process.start(cmd, opts)
 end
 
+local function get_state_env(project, mode)
+    local state_env = state.get_environment(project)
+    local entry_string = mode == "build" and "VST_MOD_BUILDENV_FILE" or "VST_MOD_RUNENV_FILE"
+    for _, entry in ipairs(state_env) do
+        if entry[1] == entry_string then
+            entry[1] = "MOD_ENV_SCRIPT"
+            break
+        end
+    end
+    return state_env
+end
+
 ------------------------------------------------------------
 -- Build Commands
 ------------------------------------------------------------
@@ -38,7 +50,7 @@ function M.build_startup_project(opts)
     if opts.clean_env == nil then
       opts.clean_env = config.clean_env
     end
-    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.env = env_editor.build_effective_env(get_state_env(project, "build"), opts)
     opts.clean_env = true
   end
 
@@ -74,7 +86,7 @@ function M.clean_startup_project(opts)
     if opts.clean_env == nil then
       opts.clean_env = config.clean_env
     end
-    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.env = env_editor.build_effective_env(get_state_env(project, "build"), opts)
     opts.clean_env = true
   end
 
@@ -148,7 +160,7 @@ function M.run_startup_project(opts)
     if opts.clean_env == nil then
       opts.clean_env = config.clean_env
     end
-    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.env = env_editor.build_effective_env(get_state_env(project, "run"), opts)
     opts.clean_env = true
   end
 
@@ -180,7 +192,7 @@ function M.build_and_run(opts)
     if opts.clean_env == nil then
       opts.clean_env = config.clean_env
     end
-    opts.env = env_editor.build_effective_env(state.get_environment(project), opts)
+    opts.env = env_editor.build_effective_env(get_state_env(project, "build"), opts)
     opts.clean_env = true
   end
 
@@ -190,6 +202,7 @@ function M.build_and_run(opts)
         opts.clear_buffer = true
         opts.keep_open = false
         opts.focus = false
+        opts.env = nil
         M.run_startup_project(opts)
       else
         vim.notify("Build failed, not running executable.", vim.log.levels.ERROR)
